@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/qr_install.css">
+  <title>Montage-Zeiterfassung</title>
+</head>
+<body>
+  <h1>Montage – <span id="projName">Projekt</span></h1>
+  <div class="muted" id="projInfo">Bitte Datum, Name und Minuten eintragen.</div>
+
+  <div class="card" style="margin-top:12px">
+    <form id="formX">
+      <input type="hidden" name="project_id" id="project_id"/>
+      <label for="datum">Datum</label>
+      <input type="date" id="datum" name="datum" required />
+
+      <label for="mitarbeiter">Name (Mitarbeiter)</label>
+      <input type="text" id="mitarbeiter" name="mitarbeiter" placeholder="Vor- und Nachname" required />
+
+      <label for="stunden">Arbeitszeit</label>
+<div style="display: flex; gap: 10px; max-width: 250px;">
+  <div style="flex: 1; position: relative;">
+    <input type="number" id="stunden" name="stunden" min="0" max="24" step="1"
+           placeholder="Std" class="time-input" />
+  </div>
+  <div style="width: 20px; display: flex; align-items: center; justify-content: center; color: var(--ink-dark); font-size: 20px; font-weight: 600;">
+    :
+  </div>
+  <div style="flex: 1; position: relative;">
+    <input type="number" id="minuten" name="minuten" min="0" max="59" step="1"
+           placeholder="Min" class="time-input" />
+  </div>
+</div>
+
+      <button type="submit" id="sendBtn">Abschicken</button>
+      <div id="msg"></div>
+    </form>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="row" style="align-items:center">
+      <div><strong>Letzte Einträge</strong></div>
+      <div style="text-align:right"><button type="button" id="reloadBtn">Aktualisieren</button></div>
+    </div>
+    <table id="tbl">
+      <thead><tr><th>Datum</th><th>Name</th><th class="small">Min</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+(function(){
+  // project_id aus Query oder Cookie lesen
+  const params = new URLSearchParams(location.search);
+  const pid = params.get('project_id') || (document.cookie.match(/(?:^|;) *qr_project_id=([^;]+)/)||[])[1];
+  document.getElementById('project_id').value = pid || '';
+
+  // heutiges Datum voreintragen
+  const t = new Date();
+  const m = String(t.getMonth()+1).padStart(2,'0');
+  const d = String(t.getDate()).padStart(2,'0');
+  document.getElementById('datum').value = `${t.getFullYear()}-${m}-${d}`;
+
+  // Projektnamen laden
+  const pNameInUrl = params.get('project_name');
+  const nameEl = document.getElementById('projName');
+
+  if (pNameInUrl) {
+    nameEl.textContent = pNameInUrl;
+  } else if (pid) {
+    fetch(`/api/qr/project?project_id=${encodeURIComponent(pid)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (j && j.ok && j.data) {
+          nameEl.textContent = j.data.name || 'Projekt';
+          const info = document.getElementById('projInfo');
+          if (info && j.data.kunde) info.textContent = `Kunde: ${j.data.kunde}`;
+        }
+      })
+      .catch(()=>{ /* Fallback auf "Projekt" */ });
+  }
+
+  // Liste laden und anzeigen
+  async function loadList(){
+    if(!pid) return;
+    const res = await fetch(`/api/qr/entries?project_id=${encodeURIComponent(pid)}`);
+    const j = await res.json();
+    const tbody = document.querySelector('#tbl tbody');
+    tbody.innerHTML = '';
+
+    if (j.ok && Array.isArray(j.data)) {
+      j.data.forEach(r=>{
+        const tr = document.createElement('tr');
+
+        // Minuten in Stunden:Minuten umwandeln
+        const mins = r.minuten || 0;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        const zeitText = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+        tr.innerHTML = `
+          <td>${r.datum || ''}</td>
+          <td>${(r.name || '').replaceAll('<','&lt;')}</td>
+          <td class="small">${zeitText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+
+  // Formular absenden
+  let busy = false;
+  document.getElementById('formX').addEventListener('submit', async (ev)=>{
+    ev.preventDefault();
+    if (busy) return;
+    busy = true;
+
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    const msg = document.getElementById('msg');
+    msg.textContent='';
+    msg.className='';
+
+    const fd = new FormData(ev.target);
+
+    // Stunden + Minuten in Gesamt-Minuten umrechnen
+    const stunden = parseInt(fd.get('stunden') || 0);
+    const minuten = parseInt(fd.get('minuten') || 0);
+    const gesamtMinuten = (stunden * 60) + minuten;
+
+    // Validierung
+    if (gesamtMinuten < 1) {
+      msg.className='err';
+      msg.textContent='Bitte mindestens 1 Minute eingeben';
+      busy = false;
+      btn.disabled = false;
+      return;
+    }
+
+    // Payload zusammenstellen
+    const payload = {
+      project_id: fd.get('project_id'),
+      datum: fd.get('datum'),
+      mitarbeiter: fd.get('mitarbeiter'),
+      minuten: gesamtMinuten
+    };
+
+    try{
+      const res = await fetch('/api/qr/submit_installation', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+
+      if (j.ok){
+        msg.className='ok';
+        msg.textContent='✅ Gespeichert.';
+
+        // Formular zurücksetzen
+        ev.target.mitarbeiter.value = '';
+        document.getElementById('stunden').value = '';
+        document.getElementById('minuten').value = '';
+        ev.target.mitarbeiter.focus();
+
+        // Liste neu laden
+        loadList();
+      } else {
+        msg.className='err';
+        msg.textContent = j.error?.message || 'Fehler';
+      }
+    }catch(e){
+      msg.className='err';
+      msg.textContent='Netzwerkfehler: ' + e.message;
+    }finally{
+      busy = false;
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('reloadBtn').addEventListener('click', loadList);
+  loadList();
+})();
+</script>
+</body>
+</html>

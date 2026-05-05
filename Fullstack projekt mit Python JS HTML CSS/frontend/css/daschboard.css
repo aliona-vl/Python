@@ -1,0 +1,422 @@
+/* =================== ZeitRausch – Dark (Login-Look) =================== */
+:root {
+  /* Grundfarben */
+  --primary-dark: #0b1220;   /* Seitenhintergrund (dunkles Navy) */
+  --primary-blue: #22c55e;   /* -> grüner Akzent wie auf Login */
+  --background-light: #12213a; /* dunkles Panel */
+  --text-dark: #e7eefc;      /* Primärtext auf dunkel */
+  --text-light: #0b1528;     /* Sekundärtext */
+  --border-color: #253048;   /* Linien */
+
+  /* Status */
+  --success: #22c55e;
+  --warning: #FFD700;
+  --danger:  #ef4444;
+   --active:       #22c55e;   /* helles Grün */
+  --active-700:   #199846;   /* dunkler für Hover/Rand */
+
+  /* Panels/Flächen */
+  --white: #0f1b31;          /* erhöhte Fläche (statt echtes Weiß) */
+  --light-gray: #12213a;     /* Karten-Hintergrund */
+
+  /* Login-Input-Look (gelblich) */
+  --input-bg:     #fff7c2;
+  --input-text:   #0b1528;
+  --input-border: #e9d36b;
+}
+
+/* Reset */
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* Hintergrund exakt wie Login (dunkle Spielereien + Verlauf) */
+body{
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text-dark);
+  min-height:100vh;
+  padding:15px;
+  font-size:14px;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #11203b 0%, transparent 60%),
+    radial-gradient(1000px 600px at 90% 0%,  #0f2040 0%, transparent 60%),
+    var(--primary-dark);
+}
+
+/* -------------------- Main Container / Header -------------------- */
+.main-container{
+  max-width:100%;
+  margin:0 auto;
+  background: var(--light-gray);
+  border-radius:20px;
+  padding:15px;
+  box-shadow:0 15px 40px rgba(0,0,0,.3);
+  position:relative;
+}
+.main-container::before{
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--primary-blue), #0e1a2e);
+  border-radius:20px 20px 0 0;
+}
+
+/* Header */
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+  color:var(--text-dark);
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+/* links neben dem Titel/Buttons */
+.logo-section{
+  display:flex;
+  align-items:center;
+  order:1;
+}
+
+/* Grüner App-Badge (R / RAUSCH) */
+.logo{
+  background: linear-gradient(135deg, var(--primary-blue), #14b8a6);
+  color:#05222b; font-weight:800; font-size:1.1em; padding:6px 10px;
+  border-radius:8px; min-width:45px; text-align:center; line-height:1.2;
+}
+.user-info{display:flex; align-items:center; gap:15px; font-size:.85em; order:2;}
+.user-info div{display:flex; align-items:center; gap:5px;}
+.user-info a{
+  color: var(--text-light); text-decoration:none; padding:5px 10px; border-radius:5px;
+  background: rgba(255,255,255,.06); transition:.3s;
+}
+.user-info a:hover{background: rgba(255,255,255,.12);}
+
+/* -------------------- Controls -------------------- */
+.controls-section{
+  background: rgba(255,255,255,.06);
+  border-radius:12px; padding:15px; margin-bottom:20px; backdrop-filter:blur(10px);
+}
+.controls-row{display:flex; gap:10px; margin-bottom:12px; align-items:stretch;}
+.controls-row:last-child{margin-bottom:0;}
+.form-group{flex:1; display:flex; flex-direction:column; gap:4px;}
+.form-label{color:var(--text-dark); font-weight:bold; font-size:.8em;}
+.form-input,.form-select{
+  padding:10px; border:2px solid var(--input-border);
+  border-radius:6px; background:var(--input-bg); color:var(--input-text); font-size:13px;
+}
+.form-select{
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position:right 8px center; background-repeat:no-repeat; background-size:16px; padding-right:30px;
+}
+.form-group select{
+  width:100%; max-width:100%; padding:12px;
+  border:2px solid var(--input-border); border-radius:8px; font-size:16px;
+  background:var(--input-bg); color:var(--input-text);
+  transition:.3s; overflow:hidden; text-overflow:ellipsis; box-sizing:border-box;
+}
+
+/* -------------------- Buttons -------------------- */
+.management-controls{display:flex; gap:8px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;}
+.icon-btn{
+  background: var(--primary-blue); color:#0b1a12; border:none; padding:10px; border-radius:8px;
+  cursor:pointer; font-size:16px; transition:.2s; width:45px; height:45px;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.icon-btn:hover{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,0,0,.2);}
+
+.btn{
+  padding:10px 15px; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;
+  transition:.2s; box-shadow:0 2px 8px rgba(0,0,0,.15); text-decoration:none;
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+}
+.btn:hover{transform:translateY(-1px); box-shadow:0 3px 12px rgba(0,0,0,.2);}
+.btn-success{background:var(--success); color:#0b1a12;}
+.btn-primary{background:var(--primary-blue); color:#0b1a12;}
+.btn-danger{background:var(--danger); color:#fff;}
+.btn-secondary{background:var(--text-light); color:#0b1a12;}
+.btn-sm{padding:6px 10px; font-size:11px;}
+.btn-compact{
+  height: 45px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;            /* Abstand zwischen Icon und Text */
+}
+
+
+/* -------------------- Projekt-Karten -------------------- */
+.projekte-section{color:var(--text-dark);}
+.section-title{font-size:1.2em; font-weight:bold; margin-bottom:15px; text-align:center;}
+.projekte-header{display:flex; flex-direction:column; gap:10px; margin-bottom:15px; align-items:center;}
+.projekte-stats{display:flex; gap:15px; font-size:.8em; color:var(--text-light); flex-wrap:wrap; justify-content:center;}
+.projekte-grid{display:grid; grid-template-columns:1fr; gap:15px; margin-bottom:20px;}
+.projekt-card{
+  background: var(--light-gray); border-radius:12px; padding:15px;
+  border:2px solid var(--border-color); transition:.2s; position:relative; cursor:pointer;
+}
+.projekt-card:hover{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,.15);}
+.projekt-card.status-beendet{opacity:.85; border-color:#6c757d;}
+.projekt-card.status-laufend{border-color:var(--success); box-shadow:0 3px 12px rgba(34,197,94,.2);}
+.projekt-card.status-pausiert{border-color:var(--warning);}
+.projekt-card.status-aktiv,
+.projekt-card.status-active,
+.projekt-card.status-laufend{
+  border-color: var(--active-700);
+  box-shadow: 0 3px 12px rgba(34,197,94,.18);
+}
+
+
+.projekt-header{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;}
+#projektName,.projektKunde{
+  font-size:1.1em; color:var(--text-dark); margin-bottom:4px; line-height:1.2;
+  flex:1; min-height:20px; overflow:hidden; text-overflow:ellipsis;
+}
+.projekt-checkbox{width:18px; height:18px; cursor:pointer; margin-top:2px;}
+
+.projekt-status{
+  display:inline-block; padding:3px 10px; border-radius:15px; font-size:.7em; font-weight:bold;
+  text-transform:uppercase; margin-bottom:12px;
+}
+.status-laufend{background:var(--success); color:#0b1a12;}
+.status-pausiert{background:var(--warning); color:#0b1a12;}
+.status-beendet{background:#6c757d; color:#fff;}
+.status-gestoppt{background:var(--danger); color:#fff;}
+
+.projekt-progress{margin-bottom:12px;}
+.progress-item{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:.85em;}
+.progress-label{color:var(--text-dark); font-weight:500; text-transform:capitalize;}
+.progress-value{color:var(--text-light); font-weight:bold;}
+
+.projekt-total{
+  border-top:2px solid var(--border-color); padding-top:8px; margin-top:8px;
+  display:flex; justify-content:space-between; align-items:center; font-weight:bold; color:var(--text-dark);
+}
+.projekt-actions{display:flex; gap:6px; margin-top:12px;}
+
+/* Beendete Projekte Text dezenter */
+.beendet-projekt,.beendet-kunde{color:var(--text-light) !important; opacity:.9;}
+
+/* -------------------- Sticky Delete -------------------- */
+.sticky-delete-controls{
+  position:fixed; bottom:15px; left:15px; right:15px; z-index:999;
+  background: var(--white); padding:12px; border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.2); border:2px solid var(--danger); transition:.3s;
+}
+.sticky-delete-controls.hidden{transform:translateY(100px); opacity:0; pointer-events:none;}
+.delete-info{font-size:11px; color:var(--text-dark); margin-bottom:6px; text-align:center; font-weight:bold;}
+.btn-sticky-delete{
+  background:var(--danger); color:#fff; border:none; padding:10px 15px; border-radius:6px;
+  font-weight:bold; cursor:pointer; transition:.2s; width:100%; display:flex; align-items:center; justify-content:center; gap:6px; position:relative;
+}
+.selection-badge{
+  position:absolute; top:-6px; right:-6px; background:var(--white); color:var(--danger);
+  border-radius:50%; width:20px; height:20px; font-size:10px; font-weight:bold;
+  display:flex; align-items:center; justify-content:center; animation:pulse 2s infinite;
+}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+
+/* -------------------- Modal -------------------- */
+.modal{display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%;
+  background-color:rgba(0,0,0,.5); backdrop-filter:blur(5px);}
+.modal.show{display:flex !important; align-items:center; justify-content:center;}
+.modal-content{
+  background: var(--white); margin:20px; padding:0; border-radius:12px; width:90%;
+  max-width:800px; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal-header{
+  display:flex; justify-content:space-between; align-items:center; padding:20px;
+  border-bottom:2px solid var(--border-color); background: var(--primary-blue); color:#0b1a12; border-radius:12px 12px 0 0;
+}
+.close{
+  color:#0b1a2b !important; font-size:28px !important; font-weight:bold !important; cursor:pointer !important;
+  background:none !important; border:none !important; padding:0 !important; width:30px !important; height:30px !important;
+  display:flex !important; align-items:center !important; justify-content:center !important; border-radius:50% !important; transition:background .3s !important;
+}
+.close:hover{background:rgba(0,0,0,.06) !important;}
+
+.modal-title{font-size:1.2em; font-weight:bold; color:var(--text-dark); margin:15px 0; text-align:center;}
+.modal-buttons{display:flex; gap:10px; margin-top:15px; justify-content:center; flex-wrap:wrap;}
+
+.management-section{background:rgba(255,255,255,.05); border-radius:10px; padding:15px; margin-bottom:15px;}
+.management-item{background:var(--white); border-radius:8px; padding:12px;}
+.management-title{font-weight:bold; color:var(--text-dark); margin-bottom:8px; font-size:.9em;}
+.item-list{max-height:120px; overflow-y:auto;}
+.item-entry{display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--light-gray); font-size:.85em;}
+.item-entry:last-child{border-bottom:none;}
+.delete-item{background:var(--danger); color:#fff; border:none; padding:2px 5px; border-radius:3px; cursor:pointer; font-size:10px;}
+
+/* Export-Preview */
+.export-preview{background:var(--background-light); border-radius:6px; padding:12px; margin-top:12px; border:2px solid var(--border-color);}
+.export-preview h4{color:var(--text-dark); margin-bottom:8px; font-size:.9em;}
+.export-projekt-item{background:var(--white); border-radius:4px; padding:8px; margin-bottom:6px; border-left:3px solid var(--primary-blue); font-size:.8em;}
+.export-projekt-name{font-weight:bold; color:var(--text-dark); margin-bottom:2px;}
+.export-projekt-details{font-size:.75em; color:var(--text-light); line-height:1.2;}
+.export-summary{background:var(--primary-blue); color:#0b1a12; padding:8px; border-radius:4px; margin-top:8px; text-align:center; font-weight:bold; font-size:.8em;}
+
+.empty-state{text-align:center; padding:40px 20px; color:var(--text-light);}
+.empty-icon{font-size:3em; margin-bottom:15px; opacity:.5;}
+
+/* Alerts */
+.alert{position:fixed; top:15px; left:15px; right:15px; padding:12px 15px; border-radius:6px; font-weight:bold; z-index:1000; box-shadow:0 4px 15px rgba(0,0,0,.2); font-size:.85em;}
+.alert-success{background:var(--success); color:#0b1a12;}
+.alert-error{background:var(--danger); color:#fff;}
+
+
+/* === QR-Modal (Dashboard) – wie Projekt-Details === */
+#qrModalDash{
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.65); z-index:10000;
+  justify-content:center; align-items:center; padding:20px;
+}
+#qrModalContentDash{
+  background:var(--white, #0b1528); color:var(--text-dark, #e7eefc);
+  border:1px solid var(--border-color, #22314a);
+  border-radius:12px; padding:20px; width:100%; max-width:420px;
+  text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+#qrModalContentDash .modal-title{
+  font-size:1.1em; font-weight:800; color:var(--text-dark, #e7eefc); margin:0;
+}
+#qrModalContentDash .modal-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+}
+#qrModalContentDash input[type="text"]{
+  width:100%; padding:10px; border-radius:10px;
+  border:1px solid var(--border-color, #22314a);
+  background:#0a1324; color:var(--text-dark, #e7eefc);
+}
+
+/* Button-Layout im Modal */
+#qrModalContentDash .modal-buttons{
+  display:flex; justify-content:space-between; gap:8px; margin-top:12px; flex-wrap:wrap;
+}
+
+/* Drucken: nur den QR-Block zeigen */
+@media print{
+  body * { visibility: hidden; }
+  #qrModalContentDash, #qrModalContentDash * { visibility: visible; }
+  #qrModalContentDash{ position:absolute; inset:20px auto auto 20px; box-shadow:none; background:#fff; color:#000; }
+}
+
+
+
+/* -------------------- Responsive -------------------- */
+@media (min-width:768px){
+  body{padding:20px; font-size:16px;}
+  .main-container{max-width:1200px; padding:20px;}
+  .header{flex-wrap:nowrap;}
+  .controls-row{flex-direction:row;}
+  .projekte-grid{grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:20px;}
+  .projekte-header{flex-direction:row; justify-content:space-between;}
+  .management-controls{justify-content:flex-start;}
+  .sticky-delete-controls{left:auto; right:20px; width:auto; min-width:200px;}
+  .alert{left:auto; right:20px; width:auto; max-width:400px;}
+  .icon-btn{width:auto; padding:10px 15px; gap:5px;}
+  .icon-btn[onclick*="mitarbeiter"]::after{content:"Mitarbeiter"; font-size:12px; font-weight:bold;}
+  .icon-btn[onclick*="kunden"]::after{content:"Kunden"; font-size:12px; font-weight:bold;}
+}
+@media (min-width:1024px){
+  .projekte-grid{grid-template-columns:repeat(auto-fill, minmax(350px,1fr));}
+}
+
+/* Kompaktes QR-Modal (Projekt-Details) */
+.modal{display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000; justify-content:center; align-items:center; padding:20px}
+.modal-content#qrModalContentDash{background:#0b1528; border:1px solid var(--border-color); border-radius:12px; padding:20px; width:100%; max-width:360px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-title{font-size:1.1em; font-weight:800; color:var(--text-dark); margin-bottom:12px}
+
+/* Print nur den QR zeigen */
+@media print{
+  body * { visibility: hidden; }
+  #qrModalContentDash, #qrModalContentDash * { visibility: visible; }
+  #qrModalContentDash { position: absolute; inset: 20px auto auto 20px; box-shadow:none; background:#fff; color:#000; }
+}
+/* --- Override global style.css für Dashboard-Felder --- */
+.controls-section .form-input,
+.controls-section .form-select {
+  background: var(--input-bg) !important;  /* beige */
+  color: var(--input-text) !important;     /* dunkel */
+  border: 2px solid var(--input-border) !important;
+}
+.controls-section .form-input::placeholder {
+  color:#6b7280; opacity:1;
+}
+/* === QR-Modal: Header ohne grünen Balken, wie im Zielbild === */
+#qrModalDash .modal-header{
+  background: transparent !important;   /* Grün weg */
+  padding: 0 !important;
+  margin: -6px 0 10px !important;       /* dichter an den Rand, wie im Ziel */
+  border-radius: 0 !important;
+}
+
+/* Titel/Close genau wie im Ziel */
+#qrModalDash .modal-title{
+  color:#dce9ff !important;
+  font-weight:800 !important;
+  font-size:20px !important;
+  letter-spacing:.2px !important;
+}
+#qrCloseBtnDash{
+  width:48px !important;
+  height:48px !important;
+  border-radius:14px !important;
+  border:1px solid rgba(255,255,255,.18) !important;
+  background:#0f1b31 !important;
+  color:#cfe3ff !important;
+  box-shadow:none !important;
+}
+
+/* Karte/Rahmen/URL-Feld wie im Ziel */
+#qrModalDash .modal-content{
+  max-width:520px !important;
+  background:#0f1b31 !important;
+  border:2px solid rgba(255,255,255,.18) !important;
+  border-radius:18px !important;
+  box-shadow:0 28px 60px rgba(0,0,0,.45) !important;
+  padding:16px 20px 18px !important;
+}
+#qrLinkDash{
+  background:#0a1324 !important;
+  color:#eaf2ff !important;
+  border:2px solid rgba(255,255,255,.25) !important;
+  border-radius:12px !important;
+  padding:12px 14px !important;
+}
+
+/* Buttons wie im Ziel (sekundär dunkel, „Drucken“/„QR erzeugen“ grün) */
+#qrModalDash .modal-buttons{ gap:14px !important; margin-top:14px !important; }
+#qrModalDash .btn{ height:48px !important; border-radius:14px !important; padding:0 18px !important; font-weight:700 !important; }
+#qrModalDash .btn.btn-secondary{
+  background:#0e1a2e !important;
+  color:#cfe3ff !important;
+  border:2px solid rgba(255,255,255,.18) !important;
+  box-shadow:0 6px 14px rgba(0,0,0,.25) !important;
+}
+#qrModalDash .btn.btn-primary{
+  background:var(--accent) !important;
+  color:#09130c !important;
+  border:2px solid #0e3721 !important;
+  box-shadow:0 8px 18px rgba(0,0,0,.28) !important;
+}
+/* Vier Aktions-Buttons in einer Zeile */
+#qrModalDash .modal-buttons{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap:14px;
+}
+
+#qrModalDash .modal-buttons .btn{
+  width:100%;
+  height:48px;                 /* falls noch nicht gesetzt */
+  border-radius:14px;
+  padding:0 16px;
+}
+
+/* Responsiv: auf schmalen Bildschirmen 2×2 statt 4 */
+@media (max-width: 560px){
+  #qrModalDash .modal-buttons{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/index.css">
+  <title>ZeitRausch – Passwort zurücksetzen</title>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Header wie auf der Login-Seite -->
+    <div class="header-section" style="gap:10px">
+      <div class="logo" aria-label="Rausch" title="ZeitRausch">
+        R<br><span style="font-size:.6em">TIME</span>
+      </div>
+    </div>
+
+    <!-- Karte für Reset-Formular -->
+    <div class="card">
+      <h2 style="margin:0 0 10px;">Passwort zurücksetzen</h2>
+      <p class="hint" style="margin-bottom:14px;">
+        Bitte neues Passwort eingeben und bestätigen.
+      </p>
+
+      <label for="pw1">Neues Passwort</label>
+      <input id="pw1" type="password" autocomplete="new-password"
+             placeholder="Mindestens 8 Zeichen">
+
+      <label for="pw2">Passwort wiederholen</label>
+      <input id="pw2" type="password" autocomplete="new-password"
+             placeholder="Noch einmal eingeben">
+
+      <div class="row" style="margin-top:16px">
+        <button id="save" class="btn primary" type="button">
+          Passwort speichern
+        </button>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="btn"
+                onclick="window.location.href='/'">
+          Zurück zur Anmeldung
+        </button>
+      </div>
+
+      <div class="row">
+        <span id="msg" class="msg"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Token kommt von Flask/Jinja
+    const RESET_TOKEN = "{{ token|default('') }}";
+
+    function setMessage(text, ok = true) {
+      const el = document.getElementById('msg');
+      if (!el) return;
+      el.textContent = text || "";
+      el.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    async function doReset() {
+      const pw1 = document.getElementById('pw1').value.trim();
+      const pw2 = document.getElementById('pw2').value.trim();
+
+      if (pw1.length < 8) {
+        setMessage("Passwort muss mindestens 8 Zeichen haben.", false);
+        return;
+      }
+      if (pw1 !== pw2) {
+        setMessage("Passwörter stimmen nicht überein.", false);
+        return;
+      }
+      if (!RESET_TOKEN) {
+        setMessage("Reset-Token fehlt oder ist ungültig.", false);
+        return;
+      }
+
+      setMessage("Passwort wird gesetzt …", true);
+
+      try {
+        const res = await fetch("/api/auth/password/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: RESET_TOKEN, password: pw1 })
+        });
+
+        let j = {};
+        try { j = await res.json(); } catch {}
+
+        if (res.ok && (j.ok || j.status === "success")) {
+          setMessage("Passwort geändert. Du kannst dich jetzt anmelden.", true);
+          setTimeout(() => { window.location.href = "/"; }, 1200);
+        } else {
+          const msg = j.error?.message || j.message || `HTTP ${res.status}`;
+          setMessage(msg, false);
+        }
+      } catch (e) {
+        setMessage(e.message || "Fehler beim Zurücksetzen.", false);
+      }
+    }
+
+    document.getElementById('save')
+      .addEventListener('click', (e) => {
+        e.preventDefault();
+        doReset();
+      });
+
+    // Optional: Enter-Taste im zweiten Feld triggert Speichern
+    document.getElementById('pw2')
+      .addEventListener('keydown', (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doReset();
+        }
+      });
+  </script>
+</body>
+</html>

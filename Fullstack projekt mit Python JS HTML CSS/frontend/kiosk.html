@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/kiosk.css">
+  <title>Fertigung – Kiosk</title>
+</head>
+<body>
+
+  <!-- Alert-Container -->
+  <div id="alertBox"></div>
+
+  <div class="main-container">
+    <div class="header">
+      <div class="logo-section">
+        <div class="logo">R<br><span>RAUSCH</span></div>
+      </div>
+
+      <button id="btnMitarbeiter" class="btn btn-primary">👥 Mitarbeiter</button>
+
+      <div class="user-info">
+        <a href="/dashboard">← Manager-Dashboard</a>
+      </div>
+    </div>
+
+    <h2 class="section-title">Fertigung · Projekte</h2>
+    <div class="projekte-stats">
+      <span id="countBadge">📊 {{ projekte|length if projekte else 0 }} gesamt</span>
+    </div>
+
+    <div class="projekte-grid" id="projektGrid">
+      {% for p in projekte %}
+        <div class="projekt-card {{ 'active' if p.fertigung_laeuft else '' }}">
+          <!-- ganze Karte klickbar -->
+          <a class="card-link" href="/kiosk/projekt/{{ p.id }}" aria-label="Projekt öffnen"></a>
+
+          <div class="projekt-header">
+            <div class="projekt-name">
+              {{ p.name }}
+              <span class="status-dot" title="{{ 'Fertigung läuft' if p.fertigung_laeuft else 'Keine laufende Tätigkeit' }}"></span>
+              {% if p.fertigung_laeuft %}
+                <span style="color:#15b369;font-weight:700;margin-left:6px;">läuft</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="projekt-kunde">👤 {{ p.kunde or 'Kunde unbekannt' }}</div>
+
+          <div class="stretch"></div>
+
+          <div class="projekt-footer">
+            <div>⏱ Gesamt</div>
+            <div class="projekt-zeit">{{ p.gesamt_hhmm }}</div>
+          </div>
+
+          <div class="card-actions">
+  <a class="btn btn-primary" href="/kiosk/projekt/{{ p.id }}" role="button" aria-label="Öffnen">Öffnen</a>
+</div>
+
+        </div>
+      {% endfor %}
+
+      {% if not projekte or projekte|length == 0 %}
+        <div style="grid-column:1/-1;color:#fff;opacity:.85;text-align:center;padding:30px 0">
+          Keine Projekte vorhanden.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Mitarbeiter-Modal -->
+  <div id="mitarbeiterModal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-title">👥 Mitarbeiter verwalten</div>
+
+      <div class="management-section">
+        <form id="mitarbeiterFormKiosk">
+          <div class="form-group">
+            <input id="neuerMitarbeiterKiosk" class="form-input" type="text" placeholder="Mitarbeiter Name" required />
+          </div>
+          <div class="form-group" style="display:flex;gap:10px">
+            <button type="submit" class="btn-success">➕ Hinzufügen</button>
+            <button type="button" class="btn-open" onclick="closeModal('mitarbeiterModal')">Schließen</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="management-section">
+        <div style="font-weight:700;margin-bottom:8px">Aktuelle Mitarbeiter:</div>
+        <div id="mitarbeiterListeKiosk" class="item-list">
+          {% for ma in mitarbeiter %}
+            <div class="item-entry">
+              <span>{{ ma }}</span>
+              <button class="btn-danger" type="button" onclick="mitarbeiterLoeschenKiosk('{{ ma|e }}')">✖︎</button>
+            </div>
+          {% endfor %}
+          {% if not mitarbeiter or mitarbeiter|length == 0 %}
+            <div class="item-entry" style="opacity:.7">Noch keine Mitarbeiter vorhanden.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mini-helpers
+    const $  = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+    function showAlert(msg, ok=true){
+      const box = $('#alertBox');
+      if(!box){ alert(msg); return; }
+      box.innerHTML = `<div class="alert ${ok?'ok':'err'}">${msg}</div>`;
+      setTimeout(()=> box.innerHTML='', 2200);
+    }
+
+    function openModal(id){ const m=$('#'+id); if(m){m.style.display='flex'; m.setAttribute('aria-hidden','false');} }
+    function closeModal(id){ const m=$('#'+id); if(m){m.style.display='none';  m.setAttribute('aria-hidden','true');} }
+
+    // Mitarbeiter laden (nur KIOSK-Endpunkte!)
+    async function loadFertMitarbeiter(){
+      const list = $('#mitarbeiterListeKiosk');
+      if(!list) return;
+      list.innerHTML = `<div class="item-entry" style="opacity:.7">Lade …</div>`;
+      try{
+        const res = await fetch('/kiosk/mitarbeiter/list');
+        const j   = await res.json();
+        if(!j.ok) throw new Error(j.message||'Fehler');
+        if(!j.data || j.data.length===0){
+          list.innerHTML = `<div class="item-entry" style="opacity:.7">Noch keine Mitarbeiter vorhanden.</div>`;
+          return;
+        }
+        list.innerHTML = '';
+        j.data.forEach(name=>{
+          const row = document.createElement('div');
+          row.className = 'item-entry';
+          row.innerHTML = `<span>${name}</span>
+            <button class="btn-danger" type="button" onclick="mitarbeiterLoeschenKiosk('${name.replace(/'/g,"\\'")}')">✖︎</button>`;
+          list.appendChild(row);
+        });
+      }catch(e){
+        list.innerHTML = `<div class="item-entry" style="opacity:.7">Fehler beim Laden.</div>`;
+      }
+    }
+
+    async function mitarbeiterHinzufuegenKiosk(ev){
+      ev?.preventDefault();
+      const inp  = $('#neuerMitarbeiterKiosk');
+      const name = (inp?.value || '').trim();
+      if(!name) return showAlert('Name fehlt', false);
+
+      const res = await fetch('/kiosk/mitarbeiter/hinzufuegen', {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'name='+encodeURIComponent(name)
+      });
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){
+        inp.value = '';
+        showAlert('Hinzugefügt');
+        loadFertMitarbeiter();
+      }else{
+        showAlert(j.message || 'Fehler beim Hinzufügen', false);
+      }
+    }
+
+    async function mitarbeiterLoeschenKiosk(name){
+      if(!name) return;
+      if(!confirm(`Mitarbeiter "${name}" entfernen?`)) return;
+      const res = await fetch('/kiosk/mitarbeiter/loeschen', {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'name='+encodeURIComponent(name)
+      });
+      const j = await res.json().catch(()=>({}));
+      if(res.ok && j.ok){
+        showAlert('Gelöscht');
+        loadFertMitarbeiter();
+      }else{
+        showAlert(j.message || 'Fehler beim Löschen', false);
+      }
+    }
+
+    // Bindings
+    document.addEventListener('DOMContentLoaded', ()=>{
+      $('#btnMitarbeiter')?.addEventListener('click', ()=>{
+        openModal('mitarbeiterModal');
+        loadFertMitarbeiter();
+      });
+      $('#mitarbeiterFormKiosk')?.addEventListener('submit', mitarbeiterHinzufuegenKiosk);
+
+      // Modal close on overlay / ESC
+      $('#mitarbeiterModal')?.addEventListener('click', (e)=>{ if(e.target.id==='mitarbeiterModal') closeModal('mitarbeiterModal'); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal('mitarbeiterModal'); });
+    });
+  </script>
+</body>
+</html>

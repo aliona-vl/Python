@@ -1,0 +1,43 @@
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);margin:18px}
+    .container{max-width:1100px;margin:0 auto}
+
+    /* Toolbar */
+    .toolbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:.75rem;
+      padding:.6rem .9rem;background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+    .toolbar .title{flex:1 1 auto;display:flex;gap:.75rem;align-items:center}
+    .btn{padding:.45rem .85rem;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;border-radius:.5rem;font-weight:600;text-decoration:none;color:inherit;display:inline-block}
+    .btn:hover{background:#f1f5f9}
+    .btn--ghost{background:#fff}
+
+    /* Headline */
+    h1{font-size:20px;margin:0 0 6px}
+    .sub{color:var(--muted);margin-bottom:10px}
+
+    /* Cards */
+    .card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+    .card + .card{margin-top:16px}
+    .card h2{font-size:18px;margin:0 0 8px}
+    .muted{color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .panel{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:10px}
+
+    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+    th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;font-size:14px}
+    th{background:#f9fafb;font-weight:700}
+    .right{text-align:right}
+    .badges{display:flex;gap:8px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--chipbd);font-weight:600}
+    .pill--all{background:var(--chip)}
+    .pill--fert{background:var(--chip2)}
+    .pill--inst{background:var(--chip3)}
+
+    .foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px}
+
+    @media print{
+      body{margin:0}
+      .print-hide{display:none !important}
+      .card{page-break-inside:avoid}
+      a[href]:after{content:""}
+      .container{max-width:none}
+    }

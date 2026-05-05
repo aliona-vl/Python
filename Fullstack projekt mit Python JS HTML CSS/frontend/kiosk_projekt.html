@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/kiosk_projekt.css">
+  <title>Fertigung – {{ projekt.name }}</title>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">R<br><span style="font-size:.6em">RAUSCH</span></div>
+      <a href="/kiosk" class="btn">← Daschboard</a>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800;font-size:18px">{{ projekt.name }}</div>
+      <div class="muted">Kunde: {{ projekt.kunde or '–' }}</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label style="display:block;margin-bottom:4px">Mitarbeiter</label>
+          <input list="mlist" id="mitarbeiterSelect" placeholder="Name eingeben">
+          <datalist id="mlist">
+            {% for n in mitarbeiter %}<option value="{{ n }}">{% endfor %}
+          </datalist>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:4px">Teilbereich</label>
+          <select id="teilbereichSelect">
+            <option value="">Bitte wählen…</option>
+            {% for k, lbl in teilbereiche.items() %}
+              <option value="{{k}}">{{lbl}}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <<label>Dauer</label>
+<div style="display: flex; gap: 10px; align-items: center;">
+  <div style="flex: 1;">
+    <input type="number" id="stundenInput" min="0" max="24" step="1" placeholder="Stunden" style="width: 100%;" />
+
+  </div>
+  <div style="flex: 1;">
+    <input type="number" id="minutenInput" min="0" max="59" step="1" placeholder="Minuten" style="width: 100%;" />
+
+  </div>
+</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button id="btnManuellSave" class="btn btn-primary" style="flex:1">⏱️ Manuell speichern</button>
+          <button id="btnStart" class="btn btn-success" style="flex:1">▶ Start</button>
+        </div>
+      </div>
+    </div>
+
+    {% if offene %}
+    <div class="card">
+      <h3 style="margin:0 0 8px 0">Laufend</h3>
+      <div class="list">
+        {% for s in offene %}
+          <div class="item">
+            <div style="display:flex;justify-content:space-between">
+              <div><b>{{ s.mitarbeiter }}</b> · <span class="badge">{{ teilbereiche.get(s.teilbereich, s.teilbereich) }}</span></div>
+              <button class="btn btn-danger" onclick="aktivitaetBeenden({{ s.id }})">■ Stop</button>
+            </div>
+            <div class="muted">Start: {{ s.start_zeit }}</div>
+            <div class="muted"><span class="live-timer" data-start="{{ s.start_zeit }}"></span></div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+    <h3 style="margin:0 0 8px 0">Letzte Einträge</h3>
+    <div class="list">
+      {% for r in eintraege %}
+        <div class="item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <b>{{ r.mitarbeiter }}</b> ·
+              <span class="badge">{{ teilbereiche.get(r.teilbereich, r.teilbereich) }}</span>
+            </div>
+            <div><b>{{ r.dauer_text }}</b></div>
+          </div>
+          <div class="muted">
+            {{ r.datum }}
+            {% if r.end_zeit %}
+              · {{ r.start_zeit.strftime('%H:%M') if r.start_zeit else '' }} – {{ r.end_zeit.strftime('%H:%M') if r.end_zeit else '' }} Uhr
+            {% else %}
+              · seit {{ r.start_zeit.strftime('%H:%M') if r.start_zeit else '' }} Uhr (läuft…)
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="muted">Noch keine Einträge.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div id="alertContainer"></div>
+ <script>
+  // ===== Kiosk Projekt – Frontend-Logik (nur Fertigung) =====
+  const PROJEKT_ID = {{ projekt.id }};
+  const $ = (s, r=document) => r.querySelector(s);
+
+  /* ---- Mini-UI ---- */
+  function show(msg, ok=true){
+    let box = document.getElementById('alertContainer');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'alertContainer';
+      document.body.appendChild(box);
+    }
+    box.innerHTML = `<div style="position:fixed;top:12px;right:12px;background:${ok?'#3e9e12':'#fa2d41'};color:#fff;padding:10px 12px;border-radius:8px;font-weight:800;z-index:9999">${msg}</div>`;
+    setTimeout(()=> box.innerHTML='', 2200);
+  }
+
+  /* ---- Laufende Timer anzeigen ---- */
+  function updateLive(){
+    document.querySelectorAll('.live-timer').forEach(el=>{
+      const iso = el.getAttribute('data-start');
+      if(!iso) return;
+      const start = new Date(iso);
+      const diff = Date.now() - start.getTime();
+      if (isNaN(diff) || diff < 0) return;
+
+      const total = Math.floor(diff/1000);
+      const m = Math.floor(total/60), s = total % 60, h = Math.floor(m/60), mm = m % 60;
+      el.textContent = h > 0 ? `${h}h ${mm}m` : `${m}m ${s}s`;
+    });
+  }
+  updateLive();
+  setInterval(updateLive, 1000);
+
+  /* ---- Helpers ---- */
+  async function postJSON(url, body){
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {})
+    });
+    let j = {};
+    try { j = await res.json(); } catch {}
+    if (!res.ok || j?.ok === false) {
+      throw new Error(j?.message || `HTTP ${res.status}`);
+    }
+    return j;
+  }
+
+  const val = id => (document.getElementById(id)?.value || '').trim();
+
+  /* ---- Stunden + Minuten zu Gesamt-Minuten ---- */
+  function getGesamtMinuten() {
+    const stunden = parseInt(val('stundenInput') || 0);
+    const minuten = parseInt(val('minutenInput') || 0);
+    return (stunden * 60) + minuten;
+  }
+
+  /* ---- Aktionen (nur Fertigung / sitzungen_fertigung) ---- */
+
+  // Manuelle Buchung
+  document.getElementById('btnManuellSave')?.addEventListener('click', async ()=>{
+    const name = val('mitarbeiterSelect');
+    const tb = val('teilbereichSelect');
+    const dauer = getGesamtMinuten();
+
+    if (!name || !tb) {
+      return show('Bitte Mitarbeiter & Teilbereich wählen', false);
+    }
+
+    if (dauer < 1) {
+      return show('Bitte mindestens 1 Minute eingeben', false);
+    }
+
+    const btn = document.getElementById('btnManuellSave');
+    if (btn) btn.disabled = true;
+
+    try{
+      await postJSON('/api/kiosk/session/manuell', {
+        projekt_id: PROJEKT_ID,
+        mitarbeiter: name,
+        teilbereich: tb,
+        dauer: dauer
+      });
+      show('✅ Gespeichert', true);
+      setTimeout(()=>location.reload(), 600);
+    }catch(e){
+      show(e.message, false);
+    }finally{
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  // Start
+  document.getElementById('btnStart')?.addEventListener('click', async ()=>{
+    const name = val('mitarbeiterSelect');
+    const tb = val('teilbereichSelect');
+
+    if (!name || !tb) {
+      return show('Bitte Mitarbeiter & Teilbereich wählen', false);
+    }
+
+    const btn = document.getElementById('btnStart');
+    if (btn) btn.disabled = true;
+
+    try{
+      await postJSON('/api/kiosk/session/start', {
+        projekt_id: PROJEKT_ID,
+        mitarbeiter: name,
+        teilbereich: tb
+      });
+      show('✅ Gestartet', true);
+      setTimeout(()=>location.reload(), 600);
+    }catch(e){
+      show(e.message, false);
+    }finally{
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  // Stop (global verfügbar, da oft in onclick benutzt)
+  async function aktivitaetBeenden(session_id){
+    if (!session_id) return;
+    try{
+      await postJSON('/api/kiosk/session/stop', { session_id });
+      show('✅ Beendet', true);
+      setTimeout(()=>location.reload(), 600);
+    }catch(e){
+      show(e.message, false);
+    }
+  }
+  window.aktivitaetBeenden = aktivitaetBeenden;
+</script>
+
+</body>
+</html>

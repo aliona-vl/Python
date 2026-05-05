@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/index.css">
+  <title>ZeitRausch – Anmeldung</title>
+</head>
+<body>
+  <div class="wrap">
+<div class="header-section" style="gap:10px">
+      <div class="logo" aria-label="Rausch" title="ZeitRausch">R<br><span style="font-size:.6em">TIME</span></div>
+</div>
+
+    <div class="card">
+      <div class="tabs">
+        <button id="tabLogin" class="tab active" type="button" onclick="switchTab('login')">Anmelden</button>
+        <button id="tabReg"   class="tab"        type="button" onclick="switchTab('register')">Registrieren</button>
+      </div>
+
+      <!-- Login -->
+      <form id="formLogin" onsubmit="return false">
+        <label>E-Mail</label>
+        <input id="loginEmail" type="email" autocomplete="email" required>
+        <label>Passwort</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+        <div class="row" style="margin-top:16px">
+          <button class="btn primary" id="btnLogin" type="button">Anmelden</button>
+        </div>
+        <div class="row"><span id="loginMsg" class="msg"></span></div>
+        <div class="hint" style="margin-top:6px">Ohne Team-Code wird normales E-Mail/Passwort-Login verwendet.</div>
+      </form>
+
+      <!-- Registrieren -->
+      <form id="formRegister" onsubmit="return false" style="display:none">
+        <label>E-Mail</label>
+        <input id="regEmail" type="email" autocomplete="email" required>
+        <label>Passwort</label>
+        <input id="regPassword" type="password" autocomplete="new-password" required>
+        <label>Passwort wiederholen</label>
+        <input id="regPassword2" type="password" autocomplete="new-password" required>
+        <label class="hint">Team-Code (optional)</label>
+        <input id="regTeam" type="text" placeholder="zB dgfzb123KJ">
+        <div class="row" style="margin-top:16px">
+          <button class="btn primary" id="btnRegister" type="button">Registrieren</button>
+        </div>
+        <div class="row"><span id="regMsg" class="msg"></span></div>
+      </form>
+    </div>
+
+    <!-- Passwort zurücksetzen -->
+    <div class="reset-strip">
+      <button class="btn" id="btnResetReq" type="button">Passwort zurücksetzen</button>
+      <div class="hint" style="margin-top:6px">Wir schicken dir einen Link per E-Mail.</div>
+    </div>
+  </div>
+
+  <!-- Modal: neues Passwort setzen -->
+  <div class="modal" id="resetModal" aria-hidden="true">
+    <div class="box">
+      <h2 style="margin:6px 0 10px">Neues Passwort setzen</h2>
+      <div class="grid2">
+        <div><label>Neues Passwort</label><input id="newPw1" type="password"></div>
+        <div><label>Passwort wiederholen</label><input id="newPw2" type="password"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="btnDoReset" type="button">Passwort setzen</button>
+        <button class="btn" type="button" onclick="closeReset()">Abbrechen</button>
+      </div>
+      <div class="row"><span id="resetMsg" class="msg"></span></div>
+    </div>
+  </div>
+
+ <script>
+document.addEventListener("DOMContentLoaded", () => {
+  const $  = (s) => document.querySelector(s);
+  const on = (sel, ev, fn) => { const el = $(sel); if (el) el.addEventListener(ev, fn); };
+  const show = (el, msg, ok=true) => { if(!el) return; el.textContent = msg||""; el.className = "msg " + (ok?"ok":"err"); };
+
+  function setCookie(name,val){ document.cookie = `${name}=${encodeURIComponent(val)}; Path=/; SameSite=Lax`; }
+  function getCookie(name){
+    return document.cookie.split(";").map(s=>s.trim())
+      .find(s=>s.startsWith(name+"="))?.split("=").slice(1).join("=") || "";
+  }
+
+ function switchTab(which){
+  const isLogin = which === "login";
+  $("#tabLogin")?.classList.toggle("active", isLogin);
+  $("#tabReg")?.classList.toggle("active", !isLogin);
+  if ($("#formLogin"))    $("#formLogin").style.display    = isLogin ? "" : "none";
+  if ($("#formRegister")) $("#formRegister").style.display = isLogin ? "none" : "";
+}
+window.switchTab = switchTab;   // <-- neu: macht die Funktion global für onclick
+
+  function openReset(){ $("#resetModal")?.classList.add("open"); }
+  function closeReset(){ $("#resetModal")?.classList.remove("open"); }
+  window.closeReset = closeReset;
+
+  async function postJSON(url, body, extraHeaders){
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: Object.assign({"Content-Type":"application/json"}, extraHeaders||{}),
+      body: JSON.stringify(body || {})
+    });
+    let j={}; try{ j = await res.json(); }catch{}
+    if(!res.ok || j?.ok === false){
+      const m = j?.error?.message || j?.message || `HTTP ${res.status}`;
+      throw new Error(m);
+    }
+    return j;
+  }
+
+  function storeToken(t){ try{ sessionStorage.setItem("pwreset", t); }catch{} setCookie("pwreset", t); }
+  function readToken(){
+    const t = sessionStorage.getItem("pwreset") || getCookie("pwreset");
+    if (t) return t;
+    if ((location.hash||"").startsWith("#reset=")) return location.hash.substring(7);
+    return "";
+  }
+
+  // Tabs
+  on("#tabLogin","click",()=>switchTab("login"));
+  on("#tabReg","click",()=>switchTab("register"));
+  switchTab("login");
+
+  // Hash aus Mail (#reset=...)
+  (function(){
+    const h = location.hash || "";
+    if(h.startsWith("#reset=")){
+      storeToken(h.substring(7));
+      openReset();
+      history.replaceState(null,"",location.pathname+location.search);
+    }
+  })();
+
+  // Login
+  on("#btnLogin","click", async (e)=>{
+    e.preventDefault();
+    const email = $("#loginEmail")?.value.trim().toLowerCase();
+    const password = $("#loginPassword")?.value;
+    const msg = $("#loginMsg");
+    const btn = $("#btnLogin");
+    if(!email || !password){ show(msg,"E-Mail & Passwort sind erforderlich",false); return; }
+    btn.disabled = true; show(msg,"Bitte warten…",true);
+    try{
+      await postJSON("/api/auth/login", {email, password});
+      location.assign("/dashboard");
+    }catch(err){
+      show(msg, err.message || "Login fehlgeschlagen", false);
+    }finally{ btn.disabled = false; }
+  });
+
+  // Registrieren
+  on("#btnRegister","click", async (e)=>{
+    e.preventDefault();
+    const email = $("#regEmail")?.value.trim().toLowerCase();
+    const pw1   = $("#regPassword")?.value;
+    const pw2   = $("#regPassword2")?.value;
+    const team  = $("#regTeam") ? $("#regTeam").value.trim() : "";
+    const msg   = $("#regMsg");
+    const btn   = $("#btnRegister");
+    if(!email || !pw1){ show(msg,"E-Mail & Passwort sind erforderlich",false); return; }
+    if(pw1 !== pw2){ show(msg,"Passwörter stimmen nicht überein",false); return; }
+    btn.disabled = true; show(msg,"Konto wird erstellt…",true);
+    try{
+      await postJSON("/api/auth/register", { email, password: pw1, team_code: team });
+      show(msg,"Registriert. Bitte anmelden.",true);
+      switchTab("login");
+      if ($("#regPassword"))  $("#regPassword").value  = "";
+      if ($("#regPassword2")) $("#regPassword2").value = "";
+    }catch(err){
+      show(msg, err.message || "Registrierung fehlgeschlagen", false);
+    }finally{ btn.disabled = false; }
+  });
+
+  // Reset anfordern
+  on("#btnResetReq","click", async ()=>{
+    const email = ($("#loginEmail")?.value || $("#regEmail")?.value || "").trim().toLowerCase();
+    const msg   = $("#loginMsg");
+    if(!email){ show(msg,"Bitte oben E-Mail eingeben.", false); return; }
+    show(msg,"Sende Reset-Link…", true);
+    try{
+      const j = await postJSON("/api/auth/password/request", { email });
+      const tok = j.token || (j.dev_link?.startsWith("#reset=") ? j.dev_link.substring(7) : "");
+      if (tok) {
+        storeToken(tok);
+        show(msg,"DEV: Reset-Token gesetzt – neues Passwort eingeben.", true);
+        openReset();
+      } else {
+        show(msg, j.message || "Wenn die E-Mail existiert, wurde ein Link gesendet.", true);
+      }
+    }catch(e){
+      show(msg, e.message || "Fehler beim Senden", false);
+    }
+  });
+
+  // Passwort setzen
+  on("#btnDoReset","click", async ()=>{
+    const p1 = $("#newPw1")?.value;
+    const p2 = $("#newPw2")?.value;
+    const m  = $("#resetMsg");
+    const tok = readToken();
+
+    if(!tok){ show(m,"Reset-Token fehlt (bitte zuerst „Passwort zurücksetzen“).", false); return; }
+    if(!p1 || p1!==p2){ show(m,"Passwörter stimmen nicht.", false); return; }
+
+    show(m,"Setze Passwort…", true);
+    try{
+      const j = await postJSON("/api/auth/password/reset",
+        { token: tok, new_password: p1 },
+        { "X-Reset-Token": tok }
+      );
+      show(m, j.message || "Passwort gesetzt. Du kannst dich anmelden.", true);
+      try{ sessionStorage.removeItem("pwreset"); }catch{}
+      document.cookie = "pwreset=; Path=/; Max-Age=0";
+      setTimeout(()=>{ closeReset(); switchTab("login"); }, 900);
+    }catch(e){
+      show(m, e.message || "Fehler beim Setzen", false);
+    }
+  });
+});
+</script>
+</body>
+</html>

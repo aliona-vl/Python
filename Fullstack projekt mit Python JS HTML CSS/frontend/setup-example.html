@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeitRausch - Benachrichtigungen Setup</title>
+</head>
+<body>
+
+<!-- Füge dies in deine Haupt-HTML-Datei ein (z.B. im <head> oder vor </body>) -->
+
+<script>
+// =============================
+// Service Worker Registration
+// Dies muss VOR dem nachricht.js Skript geladen werden
+// =============================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      // Service Worker registrieren
+      const registration = await navigator.serviceWorker.register('/sw-zeitrausch.js', {
+        scope: '/'
+      });
+      
+      console.log('✅ Service Worker registriert:', registration.scope);
+      
+      // Warte auf Service Worker Aktivierung
+      await navigator.serviceWorker.ready;
+      console.log('✅ Service Worker bereit');
+      
+    } catch (error) {
+      console.error('❌ Service Worker Registrierung fehlgeschlagen:', error);
+    }
+  });
+}
+</script>
+
+<!-- Lade das Haupt-Benachrichtigungs-Skript -->
+<script src="/nachricht.js"></script>
+
+<!-- Optional: Debug-Panel -->
+<div id="notification-debug" style="position: fixed; bottom: 20px; right: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-family: monospace; font-size: 12px; max-width: 300px; z-index: 10000; display: none;">
+  <div style="font-weight: bold; margin-bottom: 10px; color: #333;">🔔 Benachrichtigungs-Debug</div>
+  <div id="debug-content"></div>
+  <button onclick="window.zrTestNotify()" style="margin-top: 10px; padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
+    Test-Benachrichtigung
+  </button>
+  <button onclick="window.zrCheckOverdue()" style="margin-top: 5px; padding: 8px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
+    Jetzt prüfen
+  </button>
+  <button onclick="document.getElementById('notification-debug').style.display='none'" style="margin-top: 5px; padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
+    Schließen
+  </button>
+</div>
+
+<script>
+// Debug-Panel anzeigen (nur für Entwicklung)
+// Entferne diesen Code in Produktion
+setTimeout(() => {
+  const debugPanel = document.getElementById('notification-debug');
+  const debugContent = document.getElementById('debug-content');
+  
+  if (debugPanel && debugContent) {
+    debugPanel.style.display = 'block';
+    
+    const updateDebugInfo = () => {
+      const info = [
+        `Permission: ${Notification.permission}`,
+        `Versteckt: ${document.hidden ? 'Ja' : 'Nein'}`,
+        `SW: ${navigator.serviceWorker.controller ? '✅' : '❌'}`,
+        `Zeit: ${new Date().toLocaleTimeString()}`
+      ];
+      debugContent.innerHTML = info.map(i => `<div style="color: #666; margin: 3px 0;">${i}</div>`).join('');
+    };
+    
+    updateDebugInfo();
+    setInterval(updateDebugInfo, 1000);
+  }
+}, 2000);
+</script>
+
+</body>
+</html>

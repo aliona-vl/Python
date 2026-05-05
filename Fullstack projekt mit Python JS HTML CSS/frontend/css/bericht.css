@@ -1,0 +1,46 @@
+  *{box-sizing:border-box}
+  *{ box-sizing:border-box }
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial;
+  color:var(--ink);
+  margin:0;
+  padding:16px;
+}
+.page{
+  max-width:900px;
+  margin:0 auto;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px 18px 24px;
+}
+
+  .hdr{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;border-bottom:2px solid var(--brand);padding-bottom:10px}
+  .t1{font-weight:800;font-size:20px}
+  .t2{color:var(--muted);font-size:14px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap}
+  .b{background:#eef2ff;border:1px solid #dbeafe;color:#1d4ed8;border-radius:999px;padding:6px 10px;font-weight:700;font-size:12px}
+  .grid{display:grid;gap:12px}
+  @media(min-width:800px){.grid-2{grid-template-columns:1fr 1fr}}
+  .card{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafafa}
+  .card h3{margin:0 0 8px;font-size:15px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+  th{background:#f3f4f6}
+  .right{text-align:right}
+  .pill{display:inline-block;border-radius:999px;padding:2px 8px;border:1px solid var(--line);background:#fff;font-weight:700}
+  .ok{background:#ecfdf5;border-color:#d1fae5;color:#065f46}
+  .muted{color:var(--muted)}
+  .footer{display:flex;gap:8px;justify-content:center;margin-top:14px}
+  .btn{border:1px solid var(--line);background:#111827;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700}
+  .btn.secondary{background:#4b5563}
+  .box { border:1px solid #ddd; border-radius:8px; padding:12px; margin:14px 0; }
+  .box h3 { margin:0 0 10px; }
+  td.num { text-align:right; }
+  .muted { opacity:.65; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  @media print{
+    body{padding:0} .page{border:none;border-radius:0}
+    .footer{display:none}
+    @page{size:A4; margin:12mm}
+  }

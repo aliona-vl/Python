@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/bericht.css">
+  <title>Projekt-Bericht · {{ projekt.name }}</title>
+</head>
+<body>
+<div class="page">
+  <div class="hdr">
+    <div>
+      <div class="t1">Projekt-Bericht · {{ projekt.name }}</div>
+      <div class="t2">Kunde: {{ projekt.kunde }}</div>
+    </div>
+    <div class="badges">
+      <div class="b">Gesamt: {{ gesamt_zeit }}</div>
+      <div class="b">Manager: {{ manager_gesamt_zeit }}</div>
+      <div class="b">Fertigung: {{ fertigung.gesamt }}</div>
+      <div class="b">Installation: {{ installation.gesamt }}</div>
+    </div>
+  </div>
+  <div class="grid grid-2">
+    <!-- ================= MANAGER-PANEL ================ -->
+<div class="box">
+  <h3>Manager-Panel</h3>
+  <div class="grid">
+    <div>
+      <h4>Zeiten pro Teilbereich</h4>
+      <table>
+        <thead><tr><th>Teilbereich</th><th class="num">Zeit</th></tr></thead>
+        <tbody>
+          {% for key, label in manager_label.items() %}
+            {% set mins = manager_sum_by_tb.get(key, 0) %}
+            {% set h = mins // 60 %}
+            {% set m = mins % 60 %}
+            <tr>
+              <td>{{ label }}</td>
+              <td class="num">{{ h }}h {{ m }}m</td>
+            </tr>
+          {% endfor %}
+          {% set total_h = manager_total_min // 60 %}
+          {% set total_m = manager_total_min % 60 %}
+          <tr>
+            <td><b>Insgesamt</b></td>
+            <td class="num"><b>{{ total_h }}h {{ total_m }}m</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>pro Mitarbeiter</h4>
+      <table>
+        <thead><tr><th>Mitarbeiter</th><th class="num">Zeit</th></tr></thead>
+        <tbody>
+          {% for row in manager_by_ma %}
+            {% set h = row.minuten // 60 %}
+            {% set m = row.minuten % 60 %}
+            <tr>
+              <td>{{ row.mitarbeiter }}</td>
+              <td class="num">{{ h }}h {{ m }}m</td>
+            </tr>
+          {% endfor %}
+          {% if not manager_by_ma %}
+            <tr><td colspan="2" class="muted">Keine Zeiten erfasst.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- ================= FERTIGUNG ================ -->
+<div class="box">
+  <h3>Fertigung</h3>
+  <div class="grid">
+    <div>
+      <h4>Zeiten pro Teilbereich</h4>
+      <table>
+        <thead><tr><th>Teilbereich</th><th class="num">Zeit</th></tr></thead>
+        <tbody>
+          {% for key, label in fert_label.items() %}
+            {% set mins = fert_sum_by_tb.get(key, 0) %}
+            {% set h = mins // 60 %}
+            {% set m = mins % 60 %}
+            <tr>
+              <td>{{ label }}</td>
+              <td class="num">{{ h }}h {{ m }}m</td>
+            </tr>
+          {% endfor %}
+          {% set total_h = fert_total_min // 60 %}
+          {% set total_m = fert_total_min % 60 %}
+          <tr>
+            <td><b>Insgesamt</b></td>
+            <td class="num"><b>{{ total_h }}h {{ total_m }}m</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>pro Mitarbeiter</h4>
+      <table>
+        <thead><tr><th>Mitarbeiter</th><th class="num">Zeit</th></tr></thead>
+        <tbody>
+          {% for row in fert_by_ma %}
+            {% set h = row.minuten // 60 %}
+            {% set m = row.minuten % 60 %}
+            <tr>
+              <td>{{ row.mitarbeiter }}</td>
+              <td class="num">{{ h }}h {{ m }}m</td>
+            </tr>
+          {% endfor %}
+          {% if not fert_by_ma %}
+            <tr><td colspan="2" class="muted">Keine Zeiten erfasst.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- ================= INSTALLATION ================ -->
+<div class="box">
+  <h3>Installation</h3>
+  <div class="grid">
+    <div>
+      <h4>Summe</h4>
+      <table>
+        <tbody>
+          {% set h = installation_total_min // 60 %}
+          {% set m = installation_total_min % 60 %}
+          <tr><td>Insgesamt</td><td class="num"><b>{{ h }}h {{ m }}m</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4>pro Mitarbeiter</h4>
+      <table>
+        <thead><tr><th>Mitarbeiter</th><th class="num">Zeit</th></tr></thead>
+        <tbody>
+          {% for row in installation_by_ma %}
+            {% set h = row.minuten // 60 %}
+            {% set m = row.minuten % 60 %}
+            <tr>
+              <td>{{ row.mitarbeiter or row.name }}</td>
+              <td class="num">{{ h }}h {{ m }}m</td>
+            </tr>
+          {% endfor %}
+          {% if not installation_by_ma %}
+            <tr><td colspan="2" class="muted">Keine Installationszeiten erfasst.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- ================= GESAMT ================ -->
+<div class="box">
+  <h3>Gesamt</h3>
+  <table>
+    <tbody>
+      {% set mh = manager_total_min // 60 %}
+      {% set mm = manager_total_min % 60 %}
+      {% set fh = fert_total_min // 60 %}
+      {% set fm = fert_total_min % 60 %}
+      {% set ih = installation_total_min // 60 %}
+      {% set im = installation_total_min % 60 %}
+      {% set gh = gesamt_min // 60 %}
+      {% set gm = gesamt_min % 60 %}
+
+      <tr><td>Summe Manager-Panel</td><td class="num">{{ mh }}h {{ mm }}m</td></tr>
+      <tr><td>Summe Fertigung</td><td class="num">{{ fh }}h {{ fm }}m</td></tr>
+      <tr><td>Summe Installation</td><td class="num">{{ ih }}h {{ im }}m</td></tr>
+      <tr><td><b>Gesamt (alle Bereiche)</b></td><td class="num"><b>{{ gh }}h {{ gm }}m</b></td></tr>
+    </tbody>
+  </table>
+</div>
+  </div>
+  <!-- Gemeinsamer Verlauf -->
+<div class="card" style="margin-top:12px">
+  <h3>🗂 Verlauf</h3>
+  {% if timeline and timeline|length > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th><th>Start</th><th>Ende</th>
+          <th>Mitarbeiter</th><th>Teil</th><th class="right">Dauer</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in timeline %}
+        <tr>
+          <td>{{ s.datum }}</td>
+          <td>{{ s.start }}</td>
+          <td>{{ s.ende }}</td>
+          <td>{{ s.mitarbeiter }}</td>
+          <td>{{ s.teilbereich }}</td>
+          <td class="right">{{ s.dauer }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="muted">Keine Einträge.</div>
+  {% endif %}
+</div>
+  <div class="footer">
+    <a class="btn" onclick="window.print()">🖨️ Drucken</a>
+    <a class="btn secondary" href="/dashboard">← Zurück</a>
+  </div>
+</div>
+</body>
+</html>

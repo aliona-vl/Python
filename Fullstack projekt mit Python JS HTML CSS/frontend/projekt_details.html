@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/projekt_details.css">
+    <title>RAUSCH - {{ projekt.name }}</title>
+</head>
+<body>
+   <!-- HEADER -->
+<div class="header-section" style="gap:10px">
+  <div class="logo" aria-label="Rausch" title="ZeitRausch">R<br><span style="font-size:.6em">R-TIME</span></div>
+
+  <button type="button" id="qrGenBtn" class="btn btn-primary" style="width:auto;padding:.6rem 1rem">
+    QR generieren
+  </button>
+
+  <a href="/dashboard" class="back-btn" style="white-space:nowrap">← Dashboard</a>
+</div>
+
+<!-- MODAL: QR-Code -->
+<div id="qrModal" class="modal">
+  <div class="modal-content" id="qrModalContent" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <div class="modal-title" style="margin:0;text-align:left">
+        QR für <span id="qrProjectName">{{ projekt.name }}</span>
+      </div>
+      <button type="button" id="qrCloseBtn" class="btn btn-secondary" style="width:auto;padding:.4rem .7rem">✕</button>
+    </div>
+
+    <div id="qrBox" style="display:flex;justify-content:center;margin:10px 0 12px"></div>
+
+    <input id="qrLink" type="text" readonly
+           style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border-color);background:#0a1324;color:var(--text-dark)">
+
+    <div class="modal-buttons" style="justify-content:space-between;gap:8px">
+      <button type="button" id="qrCopy"     class="btn btn-secondary">Link kopieren</button>
+      <a      id="qrOpen"     class="btn btn-primary" target="_blank" href="#">Kiosk öffnen</a>
+      <button type="button" id="qrDownload" class="btn btn-secondary">PNG speichern</button>
+      <button type="button" id="qrPrint"    class="btn btn-primary">Drucken</button>
+    </div>
+  </div>
+</div>
+
+<!-- QRCode lib (nur falls noch nicht geladen) -->
+
+
+        <!-- ✅ COMPACT PROJECT INFO -->
+        <div class="projekt-info">
+            <div class="projekt-title">{{ projekt.name }}</div>
+            <div class="projekt-kunde">👤 {{ projekt.kunde or 'Kunde unbekannt' }}</div>
+
+            <div class="projekt-info-grid">
+                <div class="info-card">
+                   <div class="info-time">{{ projekt.erstellt_am.strftime('%H:%M') }}</div>
+                    <div class="info-label">Erstellt um</div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-date">{{ projekt.erstellt_am.strftime('%d.%m.') }}</div>
+                    <div class="info-label">Erstellt am</div>
+                </div>
+            </div>
+
+            <div class="duration-display">
+  {# robust: alle teilbereiche addieren, egal wie sie heißen #}
+  {% set ns = namespace(total=0) %}
+  {% for _, tb in projekt.teilbereiche.items() %}
+    {% set ns.total = ns.total + (tb.gesamt_minuten or 0) %}
+  {% endfor %}
+
+  {% set gesamt_minuten = ns.total %}
+  {% set stunden = gesamt_minuten // 60 %}
+  {% set minuten = gesamt_minuten % 60 %}
+
+  <div>{{ stunden }}h {{ minuten }}m</div>
+  <div style="font-size: 0.8em; opacity: 0.7;">Gesamt-Zeit</div>
+</div>
+
+
+        <!-- ✅ MOBILE CONTROLS -->
+{% if projekt.status != 'beendet' %}
+<div class="controls-section">
+  <div class="card">
+    <form onsubmit="aktivitaetStarten(event)">
+      <div class="controls-row">
+
+        <div class="field">
+          <label for="mitarbeiterSelect">Mitarbeiter</label>
+          <input list="mlist"
+                 id="mitarbeiterSelect"
+                 class="form-input"
+                 placeholder="Name eingeben"
+                 autocomplete="off"
+                 required>
+          <datalist id="mlist">
+            {% for ma in mitarbeiter %}
+              <option value="{{ ma }}"></option>
+            {% endfor %}
+          </datalist>
+        </div>
+
+        <div class="field">
+          <label for="teilbereichSelect">Teilbereich</label>
+          <select id="teilbereichSelect" class="dropdown" required>
+            <option value="">Bitte wählen…</option>
+            {% for tb in teilbereiche %}
+              <option value="{{ tb }}">{{ tb|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Dauer</label>
+          <div class="dauer-row">
+            <div class="dauer-col">
+              <input type="number" id="stundenInput"
+                     class="form-input"
+                     min="-24" max="24" step="1"
+                     placeholder="Stunden">
+
+            </div>
+            <div class="dauer-col">
+              <input type="number" id="minutenInput"
+                     class="form-input"
+                     min="0" max="60" step="1"
+                     placeholder="Minuten">
+
+            </div>
+          </div>
+        </div>
+
+        <div class="field buttons-field">
+          <button id="btnManuellSave" type="button"
+                  class="btn btn-primary">
+            ⏱️ Manuell speichern
+          </button>
+          <button id="btnStart" type="button"
+                  class="btn btn-success">
+            ▶ Start
+          </button>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endif %}
+
+
+
+        <!-- ✅ MOBILE VERLAUF -->
+        <div class="verlauf-section">
+            <div class="verlauf-title">📋 Projekt-Verlauf</div>
+
+            <div class="verlauf-container">
+                {% set alle_aktivitäten = [] %}
+
+<!-- ✅ Aktive Sitzungen -->
+{% for mitarbeiter, sitzung in aktive_sitzungen.items() %}
+    {% set _ = alle_aktivitäten.append({
+        'typ': 'aktiv',
+        'mitarbeiter': mitarbeiter,
+        'teilbereich': sitzung['teilbereich'],
+        'start': sitzung['start'],
+        'start_berlin': sitzung['start_berlin'],
+        'sortkey': sitzung['start']
+    }) %}
+{% endfor %}
+
+<!-- ✅ Beendete Sitzungen -->
+{% for sitzung in beendete_sitzungen %}
+    {% set _ = alle_aktivitäten.append({
+        'typ': 'beendet',
+        'mitarbeiter': sitzung['mitarbeiter'],
+        'teilbereich': sitzung['teilbereich'],
+        'start': sitzung['start'],
+        'start_berlin': sitzung['start_berlin'],
+        'end_berlin': sitzung['end_berlin'],
+        'dauer_minuten': sitzung['dauer_minuten'],
+        'sortkey': sitzung['start']
+    }) %}
+{% endfor %}
+
+{% set sorted_aktivitäten = alle_aktivitäten | sort(attribute='sortkey', reverse=true) %}
+
+<div class="verlauf-section">
+    <!--<div class="verlauf-title">📋 Projekt-Verlauf</div> -->
+    <div class="verlauf-container">
+        {% if sorted_aktivitäten %}
+            {% for aktivität in sorted_aktivitäten %}
+                <div class="verlauf-item {{ aktivität.typ }}">
+                    <div class="verlauf-header">
+                        <span class="mitarbeiter-name">{{ aktivität.mitarbeiter }}</span>
+                        <span class="teilbereich-badge">{{ aktivität.teilbereich }}</span>
+                    </div>
+
+                    <div class="verlauf-zeit">
+                        {% if aktivität.typ == 'aktiv' %}
+                            ⏱️ Seit: {{ aktivität.start_berlin }} Uhr
+                        {% else %}
+                            🕐 {{ aktivität.start_berlin }} – {{ aktivität.end_berlin }} Uhr
+                        {% endif %}
+                    </div>
+
+                    <div class="verlauf-dauer">
+                        {% if aktivität.typ == 'aktiv' %}
+                            <span class="live-timer" data-start="{{ aktivität.start }}">Läuft...</span>
+                           <button class="stopp-btn"
+         data-worker="{{ aktivität.mitarbeiter }}"
+        onclick="aktivitaetBeenden(this.dataset.worker)">
+  Stop</button>
+                        {% else %}
+                            {% if aktivität.dauer_minuten < 60 %}
+                                {{ aktivität.dauer_minuten }} min
+                            {% else %}
+                                {{ aktivität.dauer_minuten // 60 }}h {{ aktivität.dauer_minuten % 60 }}m
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-verlauf">
+                📭 Noch keine Aktivitäten
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+        <!-- ✅ MOBILE BOTTOM CONTROLS -->
+        <div class="bottom-controls">
+            <a href="/dashboard" class="btn btn-secondary">← Zurück</a>
+            {% if projekt.status != 'beendet' %}
+                <button class="btn btn-danger" onclick="projektBeenden()">🏁 Beenden</button>
+            {% else %}
+                <button class="btn btn-primary" onclick="berichtAnzeigen()">📄 Bericht</button>
+            {% endif %}
+        </div>
+    </div>
+    <!-- ✅ MOBILE MODAL -->
+    <div id="projektBeendenModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">🏁 Projekt beenden?</div>
+            <p style="margin: 10px 0; color: var(--text-light); font-size: 0.9em;">
+                Alle aktiven Aktivitäten werden gestoppt.
+            </p>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-danger" onclick="projektBeendenBestaetigen()">Ja</button>
+
+                <button class="btn btn-secondary" onclick="closeModal('projektBeendenModal')">Nein</button>
+            </div>
+        </div>
+    </div>
+            <script id="qrcode-lib" src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+            <script src="/js/nachricht.js" defer></script>
+
+
+
+   <script>
+// ----- Projekt-ID aus Jinja -----
+const PROJEKT_ID = {{ projekt.id }};
+
+// ----- kleine Utils -----
+const $ = (s) => document.querySelector(s);
+
+function showAlert(message, type = 'error') {
+  const ex = document.querySelector('.alert');
+  if (ex) ex.remove();
+  const el = document.createElement('div');
+  el.className = `alert alert-${type}`;
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// Modal-Helfer
+function openModal(id){ const m = document.getElementById(id); if (m) m.style.display = 'flex'; }
+function closeModal(id){ const m = document.getElementById(id); if (m) m.style.display = 'none'; }
+
+// Fetch-Helper
+async function parseJsonSafe(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await res.text();
+    const msg = text.slice(0, 200) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return res.json();
+}
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(body || {})
+  });
+  const json = await parseJsonSafe(res).catch(() => ({}));
+  if (!res.ok || json?.status === 'error' || json?.ok === false) {
+    const msg = json?.message || json?.error?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return json;
+}
+async function postForm(url, paramsObj) {
+  const body = new URLSearchParams(paramsObj || {}).toString();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'same-origin',
+    body
+  });
+  const json = await parseJsonSafe(res).catch(() => ({}));
+  if (!res.ok || json?.status === 'error' || json?.ok === false) {
+    const msg = json?.message || json?.error?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
+// ----- Live-Timer (jede Sekunde) -----
+function updateLiveTimers() {
+  document.querySelectorAll('.live-timer').forEach(timer => {
+    const iso = timer.getAttribute('data-start')
+             || timer.getAttribute('data-start-time')
+             || timer.dataset.start
+             || timer.dataset.startTime;
+    if (!iso) return;
+    const start = new Date(iso);
+    const diff = Date.now() - start.getTime();
+    if (diff < 0) return;
+
+    const totalSec = Math.floor(diff / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+
+    if (mins < 60) timer.textContent = `${mins}m ${secs}s`;
+    else {
+      const h = Math.floor(mins / 60), m = mins % 60;
+      timer.textContent = `${h}h ${m}m`;
+    }
+  });
+}
+updateLiveTimers();
+setInterval(updateLiveTimers, 1000);
+
+// ----- Hilfsfunktion: Teilbereich-Select -----
+function getTeilbereichSelect() {
+  return document.getElementById('teilbereichSelect') || document.getElementById('taetigkeit');
+}
+
+// ======================== START (automatisch) ========================
+async function aktivitaetStarten(evt){
+  if (evt) evt.preventDefault();
+
+  const mitarbeiter = ($('#mitarbeiterSelect') || {}).value || '';
+  const sel = getTeilbereichSelect();
+  const teilbereich = (sel && sel.value) || '';
+
+  if (!mitarbeiter || !teilbereich) {
+    showAlert('❌ Bitte Mitarbeiter und Tätigkeit auswählen!');
+    return;
+  }
+
+  try {
+    await postJSON(`/projekt/${PROJEKT_ID}/aktivitaet/starten`, { mitarbeiter, teilbereich });
+    showAlert('✅ Aktivität gestartet', 'success');
+    setTimeout(() => location.reload(), 900);
+  } catch (err) {
+    showAlert('❌ ' + (err.message || 'Fehler beim Starten'));
+  }
+}
+
+// ==================== MANUELL SPEICHERN (Stunden+Minuten, auch negativ) ====================
+async function aktivitaetManuellSpeichern(evt) {
+  if (evt) evt.preventDefault();
+
+  const mitarbeiter = ($('#mitarbeiterSelect') || {}).value || '';
+  const sel = getTeilbereichSelect();
+  const teilbereich = (sel && sel.value) || '';
+
+  const hInput = document.getElementById('stundenInput');
+  const mInput = document.getElementById('minutenInput');
+
+  let h = parseInt((hInput && hInput.value) || '0', 10);
+  let m = parseInt((mInput && mInput.value) || '0', 10);
+
+  if (!Number.isFinite(h)) h = 0;
+  if (!Number.isFinite(m)) m = 0;
+  if (m < 0) m = 0;           // Minuten immer positiv
+  if (m > 59) m = 59;
+
+  // Vorzeichen kommt nur aus Stunden:
+  let gesamtMinuten;
+  if (h < 0) {
+    gesamtMinuten = h * 60 - m;   // z.B. -1h 30m -> -90
+  } else {
+    gesamtMinuten = h * 60 + m;   // z.B. 1h 30m  -> 90
+  }
+
+  if (!mitarbeiter || !teilbereich) {
+    showAlert('❌ Bitte Mitarbeiter und Tätigkeit auswählen!');
+    return;
+  }
+  // 0 verbieten, alles andere (auch negativ) erlauben
+  if (gesamtMinuten === 0) {
+    showAlert('❌ Dauer darf nicht 0 sein.');
+    return;
+  }
+
+  try {
+    await postJSON(`/projekt/${PROJEKT_ID}/aktivitaet/manuell`, {
+      mitarbeiter,
+      teilbereich,
+      dauer: String(gesamtMinuten)   // kann z.B. "90" oder "-30" sein
+    });
+    showAlert('✅ Manuell gespeichert', 'success');
+    setTimeout(() => location.reload(), 900);
+  } catch (err) {
+    showAlert('❌ ' + (err.message || 'Fehler beim Speichern'));
+  }
+}
+
+// ----- Stop -----
+async function aktivitaetBeenden(mitarbeiter){
+  const name = (mitarbeiter || '').trim();
+  if (!name) { showAlert('❌ Mitarbeiter fehlt'); return; }
+  try {
+    await postJSON(`/projekt/${PROJEKT_ID}/aktivitaet/beenden`, { mitarbeiter: name });
+    showAlert('✅ Aktivität beendet', 'success');
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    showAlert('❌ ' + (err.message || 'Fehler beim Beenden'));
+  }
+}
+
+// ----- Projekt beenden / Bericht -----
+function projektBeenden(){
+  const modal = document.getElementById('projektBeendenModal');
+  if (modal) openModal('projektBeendenModal');
+  else if (confirm('Projekt wirklich beenden?')) projektBeendenBestaetigen();
+}
+async function projektBeendenBestaetigen(){
+  try{
+    await postJSON(`/projekt/${PROJEKT_ID}/beenden`, {});
+    closeModal('projektBeendenModal');
+    showAlert('✅ Projekt beendet', 'success');
+    setTimeout(() => location.reload(), 800);
+  }catch(err){
+    showAlert('❌ ' + (err.message || 'Fehler beim Beenden'));
+  }
+}
+function berichtAnzeigen(){ window.open(`/projekt/${PROJEKT_ID}/bericht`, '_blank'); }
+
+// ----- Modal Close UX -----
+window.addEventListener('click', (e)=>{
+  if (e.target.classList && e.target.classList.contains('modal')) e.target.style.display = 'none';
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape'){
+    const open = document.querySelector('.modal[style*="display: flex"]');
+    if (open) open.style.display = 'none';
+  }
+});
+
+// ----- Buttons (falls vorhanden) -----
+const btnStart = document.getElementById('btnStart');
+if (btnStart) btnStart.addEventListener('click', aktivitaetStarten);
+
+const btnSaveMan = document.getElementById('btnManuellSave');
+if (btnSaveMan) btnSaveMan.addEventListener('click', aktivitaetManuellSpeichern);
+
+/* ====================== QR – Zusatz nur hier ====================== */
+
+/** QRCode-Lib bei Bedarf nachladen (nur für QR) */
+async function ensureQRCodeLib(){
+  if (window.QRCode) return;
+  await new Promise((ok, err) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload = ok;
+    s.onerror = () => err(new Error('QRCode-Bibliothek konnte nicht geladen werden'));
+    document.head.appendChild(s);
+  });
+}
+
+// ----- QR-Generator im Projekt-Detail -----
+(function(){
+  const genBtn = document.getElementById('qrGenBtn');
+  if (!genBtn) return; // Seite ohne QR-Bereich
+
+  genBtn.addEventListener('click', async ()=>{
+    genBtn.disabled = true;
+    try{
+      // 1) Token erzeugen / URL holen
+      const j = await postForm('/api/qr/create', { project_id: PROJEKT_ID });
+      const url = j?.data?.url || j?.url;
+      if (!url) throw new Error('Kiosk-URL fehlt in der Antwort');
+
+      // Prüfen, ob ein MODAL vorhanden ist
+      const modal = document.getElementById('qrModal');
+
+      if (modal) {
+        // ===== Modal-Weg =====
+        // Titel setzen
+        const titleEl = document.getElementById('qrProjectName');
+        if (titleEl) titleEl.textContent = "{{ projekt.name }}";
+
+        // Modal öffnen
+        openModal('qrModal');
+
+        // QR rendern
+        await ensureQRCodeLib();
+        const box = document.querySelector('#qrModal #qrBox');
+        if (box) {
+          box.innerHTML = '';
+          new QRCode(box, { text: url, width: 220, height: 220 });
+        }
+
+        // Link + Buttons
+        const link = document.getElementById('qrLink');
+        const aOpen = document.getElementById('qrOpen');
+        if (link) link.value = url;
+        if (aOpen) aOpen.href = url;
+
+        const copyBtn = document.getElementById('qrCopy');
+        if (copyBtn) copyBtn.onclick = () => navigator.clipboard.writeText(url);
+
+        const dlBtn = document.getElementById('qrDownload');
+        if (dlBtn) dlBtn.onclick = ()=>{
+          const canvas = box && box.querySelector('canvas');
+          const img    = box && box.querySelector('img');
+          const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+          if (!dataUrl) return alert('Kein QR-Bild gefunden.');
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `QR_Projekt_${PROJEKT_ID}.png`;
+          a.click();
+        };
+
+        const printBtn = document.getElementById('qrPrint');
+        if (printBtn) printBtn.onclick = ()=>{
+          const canvas = box && box.querySelector('canvas');
+          const imgUrl = canvas ? canvas.toDataURL('image/png') : (box.querySelector('img')?.src || '');
+          const w = window.open('', '_blank');
+          w.document.write(`
+            <html><head><title>QR – {{ projekt.name }}</title>
+            <style>body{font:16px/1.4 system-ui;margin:24px;text-align:center}</style>
+            </head><body>
+              <h1>Projekt: {{ projekt.name }}</h1>
+              <img src="${imgUrl}" alt="QR" style="width:320px;height:320px"/>
+              <div style="margin-top:10px">${(link && link.value ? link.value : url).replace(/&/g,'&amp;')}</div>
+            </body></html>`);
+          w.document.close(); w.focus(); w.print();
+        }
+
+        document.getElementById('qrCloseBtn')?.addEventListener('click', ()=>closeModal('qrModal'));
+
+      } else {
+        // ===== Fallback: alter Inline-Block (#qrWrap) =====
+        const wrap = document.getElementById('qrWrap');
+        const box  = document.getElementById('qrBox');
+        const link = document.getElementById('qrLink');
+        const aOpen= document.getElementById('qrOpen');
+
+        if (wrap) wrap.style.display = 'block';
+        if (box) {
+          box.innerHTML = '';
+          await ensureQRCodeLib();
+          new QRCode(box, { text: url, width: 192, height: 192 });
+        }
+        if (link) link.value = url;
+        if (aOpen) aOpen.href = url;
+
+        const copyBtn = document.getElementById('qrCopy');
+        if (copyBtn) copyBtn.onclick = () => navigator.clipboard.writeText(url);
+
+        const dlBtn = document.getElementById('qrDownload');
+        if (dlBtn) dlBtn.onclick = ()=>{
+          const canvas = box && box.querySelector('canvas');
+          const img    = box && box.querySelector('img');
+          const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+          if(!dataUrl) return alert('Kein Bild gefunden.');
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `QR_Projekt_${PROJEKT_ID}.png`;
+          a.click();
+        };
+      }
+
+    }catch(e){
+      showAlert(e.message || 'Fehler beim Generieren');
+    }finally{
+      genBtn.disabled = false;
+    }
+  });
+})();
+
+/* ==================== Ende QR – Zusatz ==================== */
+
+// ----- Für Inline-HTML-Handler verfügbar machen -----
+window.aktivitaetStarten = aktivitaetStarten;
+window.aktivitaetManuellSpeichern = aktivitaetManuellSpeichern;
+window.aktivitaetBeenden = aktivitaetBeenden;
+window.projektBeenden = projektBeenden;
+window.projektBeendenBestaetigen = projektBeendenBestaetigen;
+window.berichtAnzeigen = berichtAnzeigen;
+
+// Fallback für frühere onsubmit="aktivitätStarten(...)" mit Umlaut:
+window['aktivitätStarten'] = aktivitaetStarten;
+
+/* ------------------ Ende Script ------------------ */
+</script>
+
+
+
+
+
+</body>
+</html>

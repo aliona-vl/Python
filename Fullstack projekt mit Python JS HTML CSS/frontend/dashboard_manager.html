@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/daschboard.css">
+    <title>RAUSCH - Dashboard</title>
+</head>
+<body>
+    <div class="main-container">
+        <div id="alertContainer"></div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="logo">R<br><span style="font-size: 0.6em;">TIME</span></div>
+            </div>
+            <div class="user-info">
+                <div>👤 {{ benutzer_name }}</div>
+                <button id="btnLogout">Abmelden</button>
+
+            </div>
+        </div>
+        <!-- Neues Projekt erstellen -->
+        <div class="controls-section">
+            <form id="projektForm">
+                <div class="controls-row">
+                    <div class="form-group">
+                        <label class="form-label">Projektname</label>
+                        <input type="text" class="form-input" id="projektName" placeholder="z.B. Einfamilienhaus Müller" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kunde</label>
+                        <select class="form-select" id="projektKunde" required>
+                            <option value="">Kunde wählen...</option>
+                            {% for kunde in kunden %}
+                            <option value="{{ kunde }}">{{ kunde }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="controls-row">
+                    <button type="submit" class="btn btn-success" style="width: 100%;">📝 Neues Projekt erstellen</button>
+                </div>
+            </form>
+        </div>
+        <!-- ✅ ICON MANAGEMENT CONTROLS -->
+        <div class="management-controls">
+  <button class="btn btn-primary btn-compact" onclick="openModal('mitarbeiterModal')">👥 Mitarbeiter</button>
+  <button class="btn btn-primary btn-compact" onclick="openModal('kundenModal')">🏢 Kunden</button>
+  <button class="btn btn-primary btn-compact" onclick="openExportModal()">📊 Bericht</button>
+  <button class="btn btn-primary btn-compact" id="btnDeviceQR"
+          onclick="openModal('qrModalDash'); generateDeviceQR();">🔐 QR</button>
+</div>
+
+
+        <!-- Projekte Section -->
+        <div class="projekte-section">
+            <div class="section-title">Meine Projekte</div>
+
+            <div class="projekte-header">
+                <div class="projekte-stats">
+                    <span>📊 {{ projekte|length }} gesamt</span>
+                    <span>🟢 {{ projekte|selectattr('status', 'equalto', 'laufend')|list|length }} aktiv</span>
+                    <span>🔴 {{ projekte|selectattr('status', 'equalto', 'beendet')|list|length }} beendet</span>
+                </div>
+            </div>
+            <!-- Projekte Grid -->
+            {% if projekte %}
+            <div class="projekte-grid">
+                {% for projekt in projekte %}
+                <div class="projekt-card status-{{ projekt.status }}"
+                     data-projekt-id="{{ projekt.id }}"
+                     data-projekt-status="{{ projekt.status }}"
+                     onclick="projektoffnen({{ projekt.id }})">
+                    <div class="projekt-header">
+                        <div>
+                            <div class="projekt-name {% if projekt.status == 'beendet' %}beendet-projekt{% endif %}">
+                                {{ projekt.name or 'Projekt #' + projekt.id|string }}
+                            </div>
+                            <div class="projekt-kunde {% if projekt.status == 'beendet' %}beendet-kunde{% endif %}">
+                                👤 {{ projekt.kunde or 'Kunde unbekannt' }}
+                            </div>
+                        </div>
+                        <input type="checkbox"
+       class="projekt-checkbox"
+       id="projekt_{{ projekt.id }}"
+       name="projekt_ids"
+       value="{{ projekt.id }}"
+       data-projekt-id="{{ projekt.id }}"
+       data-status="{{ projekt.status }}"
+       onclick="event.stopPropagation(); toggleProjektAuswahl(this);">
+                    </div>
+
+                    <div class="projekt-status status-{{ projekt.status }}">
+                        {{ projekt.status|title }}
+                    </div>
+
+                   {# direkt VOR der Liste oder innerhalb davon #}
+{% set ns = namespace(total=0) %}
+<div class="projekt-progress">
+  {% for tb_name, tb_data in projekt.teilbereiche.items() %}
+    {% set ns.total = ns.total + (tb_data.gesamt_minuten or 0) %}
+    <div class="progress-item">
+      <span class="progress-label">{{ tb_name|title }}:</span>
+      <span class="progress-value">
+        {% if tb_data.gesamt_minuten < 60 %}
+          {{ tb_data.gesamt_minuten }}min
+        {% else %}
+          {{ tb_data.gesamt_minuten // 60 }}h {{ tb_data.gesamt_minuten % 60 }}min
+        {% endif %}
+      </span>
+    </div>
+  {% endfor %}
+</div>
+<div class="projekt-total">
+  <span>Gesamt:</span>
+  {% set gesamt_minuten = ns.total %}
+  <span>
+    {% if gesamt_minuten < 60 %}
+      {{ gesamt_minuten }}min
+    {% else %}
+      {{ gesamt_minuten // 60 }}h {{ gesamt_minuten % 60 }}min
+    {% endif %}
+  </span>
+</div>
+                    <div class="projekt-actions">
+                        {% if projekt.status == 'beendet' %}
+                            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); berichtAnzeigen({{ projekt.id }})">📄 Bericht</button>
+                        {% else %}
+                            <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); projektÖffnen({{ projekt.id }})">▶️ Bearbeiten</button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <h3>Noch keine Projekte</h3>
+                <p>Erstelle dein erstes Projekt!</p>
+            </div>
+            {% endif %}
+        </div>
+        <!-- ✅ MODALS  -->
+        <!-- Export Modal -->
+        <div id="exportModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-title">📊 Daten exportieren</div>
+
+                <div class="management-section">
+                    <form id="exportForm">
+                        <div class="form-group">
+                            <label class="form-label">📅 Von Datum:</label>
+                            <input type="date" class="form-input" id="exportVonDatum" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">📅 Bis Datum:</label>
+                            <input type="date" class="form-input" id="exportBisDatum" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">🎯 Format:</label>
+                            <select class="form-select" id="exportFormat">
+                                <option value="pdf">📄 PDF-Bericht</option>
+                            </select>
+                        </div>
+                        <div class="export-preview" id="exportPreview" style="display: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4>🔍 Vorschau:</h4>
+                                <button class="btn btn-primary btn-sm" onclick="vorschauDrucken()">🖨️ Drucken</button>
+                            </div>
+                            <div id="exportProjekteListe"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" onclick="exportVorschau()">🔍 Vorschau</button>
+                    <button class="btn btn-secondary" onclick="closeModal('exportModal')">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+        <!-- Mitarbeiter Modal -->
+        <div id="mitarbeiterModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-title">👥 Mitarbeiter verwalten</div>
+                <div class="management-section">
+                    <form id="mitarbeiterForm">
+                        <div class="form-group">
+                            <input type="text" class="form-input" id="neuerMitarbeiter" placeholder="Mitarbeiter Name" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">➕ Hinzufügen</button>
+                    </form>
+                </div>
+                <div class="management-item">
+                    <div class="management-title">Aktuelle Mitarbeiter:</div>
+                    <div class="item-list" id="mitarbeiterListe">
+                        {% for ma in mitarbeiter %}
+                        <div class="item-entry">
+                            <span>{{ ma }}</span>
+                            <button class="delete-item" onclick="mitarbeiterLöschen('{{ ma }}')">❌</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" onclick="closeModal('mitarbeiterModal')">Schließen</button>
+                </div>
+            </div>
+        </div>
+        <!-- Kunden Modal -->
+        <div id="kundenModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-title">🏢 Kunden verwalten</div>
+                <div class="management-section">
+                    <form id="kundenForm">
+                        <div class="form-group">
+                            <input type="text" class="form-input" id="neuerKunde" placeholder="Kunde/Firma Name" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">➕ Hinzufügen</button>
+                    </form>
+                </div>
+                <div class="management-item">
+                    <div class="management-title">Aktuelle Kunden:</div>
+                    <div class="item-list" id="kundenListe">
+                        {% for kunde in kunden %}
+                        <div class="item-entry">
+                            <span>{{ kunde }}</span>
+                            <button class="delete-item" onclick="kundeLöschen('{{ kunde }}')">❌</button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-buttons">
+                    <button class="btn btn-secondary" onclick="closeModal('kundenModal')">Schließen</button>
+                </div>
+            </div>
+        </div>
+        <!-- ✅ MOBILE STICKY DELETE BUTTON -->
+        <div id="stickyDeleteControls" class="sticky-delete-controls hidden">
+            <div class="delete-info">
+                <span id="selectedCount">0</span> Projekt(e) ausgewählt
+            </div>
+            <button class="btn-sticky-delete" id="stickyLöschenBtn" onclick="projekte_löschen()" disabled>
+                🗑️ Ausgewählte löschen
+                <div id="selectionBadge" class="selection-badge">0</div>
+            </button>
+        </div>
+    </div>
+<!-- QR-Modal -->
+<!-- vorher <div id="qrModalDash"> -->
+<div id="qrModalDash" class="modal">
+  <div class="modal-content" id="qrModalContentDash">
+    <div class="modal-header">
+      <div class="modal-title">QR für <span id="qrProjectNameDash">Tablet-Login (Fertigung)</span></div>
+      <button type="button" id="qrCloseBtnDash" class="btn btn-secondary">✕</button>
+    </div>
+
+    <div id="qrBoxDash"></div>
+
+    <input id="qrLinkDash" type="text" readonly>
+
+    <div class="modal-buttons">
+  <button id="qrCopyDash"     class="btn btn-secondary" disabled>Link kopieren</button>
+  <a      id="qrOpenDash"     class="btn btn-secondary" target="_blank" href="#" rel="noopener">Kiosk öffnen</a>
+  <button id="qrDownloadDash" class="btn btn-secondary" disabled>PNG speichern</button>
+  <button id="qrPrintDash"    class="btn btn-primary"   disabled>Drucken</button>
+</div>
+
+<button id="genDeviceQrBtn" class="btn btn-primary">QR erzeugen</button>
+  </div>
+</div>
+
+<!-- QRCode.js nur einmal laden (falls noch nicht vorhanden) -->
+<script id="qrcode-lib" src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script src="/js/dashboard_manager.js" defer></script>
+    <script src="/js/nachricht.js" defer></script>
+
+    <script>
+/* ========= Helpers ========= */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+document.getElementById('btnLogout')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  try {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (_) {}
+  // zurück zur Login-Seite
+  location.assign('/');
+});
+
+
+function showAlert(msg, type='success'){
+  const box = $('#alertContainer');
+  const html = `<div class="alert alert-${type==='success'?'success':'error'}">${msg}</div>`;
+  if (!box) { alert(msg); return; }
+  box.innerHTML = html;
+  setTimeout(()=> box.innerHTML='', 2500);
+}
+function openModal(id){ const m=$('#'+id); if(m) m.style.display='flex'; }
+function closeModal(id){ const m=$('#'+id); if(m) m.style.display='none'; }
+
+async function parseJsonSafe(res){
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const t = await res.text();
+    throw new Error(t.slice(0,200) || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+async function ensureQRCodeLib(){
+  if (window.QRCode) return;
+  await new Promise((ok,err)=>{
+    let s=document.getElementById('qrcode-lib');
+    if(!s){
+      s=document.createElement('script');
+      s.id='qrcode-lib';
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+      document.head.appendChild(s);
+    }
+    s.onload=ok; s.onerror=()=>err(new Error('QRCode-Bibliothek konnte nicht geladen werden'));
+  });
+}
+function toast(msg, type='error'){
+  const box = document.getElementById('alertContainer');
+  if (box){
+    box.innerHTML = `<div class="alert ${type==='success'?'alert-success':'alert-error'}">${msg}</div>`;
+    setTimeout(()=> box.innerHTML='', 2500);
+  } else {
+    alert(msg);
+  }
+}
+
+/* ========= Projekte ========= */
+async function projektErstellen(ev){
+  ev.preventDefault();
+  const name  = ($('#projektName')||{}).value?.trim();
+  const kunde = ($('#projektKunde')||{}).value?.trim();
+  if(!name || !kunde) return showAlert('Name und Kunde sind erforderlich!','error');
+
+  const res = await fetch('/projekt/neu', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:`name=${encodeURIComponent(name)}&kunde=${encodeURIComponent(kunde)}`
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){
+    showAlert('Projekt erstellt!');
+    setTimeout(()=>location.reload(),600);
+  } else {
+    showAlert(j.message || `Fehler (${res.status})`, 'error');
+  }
+}
+function projektOeffnen(id){ window.location.href = `/projekt/${id}`; }
+function projektoffnen(id){ projektOeffnen(id); }          // legacy alias
+function projektÖffnen(id){ projektOeffnen(id); }          // Umlaut alias
+function berichtAnzeigen(id){ window.open(`/projekt/${id}/bericht`,'_blank'); }
+
+/* ========= Auswahl & Bulk-Delete ========= */
+function toggleProjektAuswahl(){ updateDeleteButtonState($$('.projekt-checkbox:checked').length); }
+function updateDeleteButtonState(count){
+  const stick=$('#stickyDeleteControls'), badge=$('#selectionBadge'),
+        btn=$('#stickyLöschenBtn'), cnt=$('#selectedCount');
+  if(count>0){
+    stick?.classList.remove('hidden'); btn&&(btn.disabled=false);
+    cnt&&(cnt.textContent=count); if(badge){ badge.textContent=count; badge.style.display='flex'; }
+  }else{
+    stick?.classList.add('hidden'); btn&&(btn.disabled=true); if(badge) badge.style.display='none';
+  }
+}
+async function projekte_löschen(){
+  const ids = $$('.projekt-checkbox:checked').map(cb=>parseInt(cb.value,10)).filter(Boolean);
+  if(ids.length===0) return showAlert('Keine Projekte ausgewählt!','error');
+  if(!confirm(`Wirklich ${ids.length} Projekt(e) löschen?`)) return;
+
+  const res = await fetch('/projekte/loeschen', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ ids, projekt_ids: ids })
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){
+    showAlert(`Gelöscht: ${j.deleted ?? ids.length}`);
+    setTimeout(()=>location.reload(),600);
+  } else {
+    showAlert(j.message || `Löschen fehlgeschlagen (${res.status})`,'error');
+  }
+}
+
+/* ========= Mitarbeiter ========= */
+async function mitarbeiterHinzufuegen(ev){
+  ev.preventDefault();
+  const name = ($('#neuerMitarbeiter')||{}).value?.trim();
+  if(!name) return showAlert('Name fehlt','error');
+
+  const res = await fetch('/mitarbeiter/hinzufuegen', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'name='+encodeURIComponent(name)
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){ showAlert('Mitarbeiter hinzugefügt!'); location.reload(); }
+  else showAlert(j.message || 'Fehler beim Hinzufügen','error');
+}
+async function mitarbeiterLoeschen(name){
+  if(!confirm(`Mitarbeiter "${name}" löschen?`)) return;
+  const res = await fetch('/mitarbeiter/loeschen', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'name='+encodeURIComponent(name)
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){ showAlert('Mitarbeiter gelöscht!'); location.reload(); }
+  else showAlert(j.message || 'Fehler beim Löschen','error');
+}
+async function mitarbeiterLöschen(name){ return mitarbeiterLoeschen(name); } // Umlaut-Alias
+window.mitarbeiterLoeschen = mitarbeiterLoeschen;
+window.mitarbeiterLöschen  = mitarbeiterLöschen;
+
+/* ========= Kunden → companies ========= */
+async function kundenHinzufuegen(ev){
+  ev.preventDefault();
+  const name = ($('#neuerKunde')||{}).value?.trim();
+  if(!name) return showAlert('Name fehlt','error');
+
+  const res = await fetch('/companies/hinzufuegen', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'name='+encodeURIComponent(name)
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){ showAlert('Kunde hinzugefügt!'); location.reload(); }
+  else showAlert(j.message || 'Fehler beim Hinzufügen','error');
+}
+async function kundeLoeschen(name){
+  if(!confirm(`Kunde "${name}" löschen?`)) return;
+  const res = await fetch('/companies/loeschen', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'name='+encodeURIComponent(name)
+  });
+  const j = await res.json().catch(()=>({}));
+  if(res.ok && (j.status==='success'||j.ok)){ showAlert('Kunde gelöscht!'); location.reload(); }
+  else showAlert(j.message || 'Fehler beim Löschen','error');
+}
+async function kundeLöschen(name){ return kundeLoeschen(name); } // Umlaut-Alias
+window.kundeLoeschen = kundeLoeschen;
+window.kundeLöschen  = kundeLöschen;
+
+/* ========= Export ========= */
+function openExportModal(){
+  openModal('exportModal');
+  const heute=new Date(), von=new Date(); von.setDate(heute.getDate()-30);
+  const fmt=d=>d.toISOString().split('T')[0];
+  const v=$('#exportVonDatum'), b=$('#exportBisDatum');
+  if(v && !v.value) v.value = fmt(von);
+  if(b && !b.value) b.value = fmt(heute);
+}
+function closeExportModal(){ closeModal('exportModal'); }
+function exportVorschau(){
+  const von = ($('#exportVonDatum')||{}).value, bis = ($('#exportBisDatum')||{}).value;
+  if(!von || !bis) return alert('Bitte beide Daten wählen');
+  window.open(`/export/vollbericht?von=${encodeURIComponent(von)}&bis=${encodeURIComponent(bis)}`,'_blank');
+  closeExportModal();
+}
+
+/* ========= QR (Tablet-Login) – identisch zum Projekt-Detail, mit Fallback ====== */
+async function generateDeviceQR(){
+  const btn   = document.getElementById('genDeviceQrBtn') || document.getElementById('qrGenerateBtn');
+  const box   = document.getElementById('qrBoxDash');     // <div> für QR
+  const link  = document.getElementById('qrLinkDash');    // <input readonly>
+  const aOpen = document.getElementById('qrOpenDash');    // <a target=_blank>
+  const msgEl = document.getElementById('qrMsgDash');     // optional
+
+  const msg = s => { if(msgEl){ msgEl.textContent=s; msgEl.style.opacity=1; setTimeout(()=>msgEl.style.opacity=0, 2000);} };
+
+  if (btn) btn.disabled = true;
+  openModal('qrModalDash');
+  msg('Erzeuge Link …');
+
+  try{
+    // optionaler Bearer; Cookies gehen immer mit (same-origin)
+    const bearer =
+      localStorage.getItem('access') ||
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('token') || '';
+    const headers = {};
+    if (bearer) headers['Authorization'] = 'Bearer ' + bearer;
+
+    // 1. Versuch: /api/device/qr
+    let res = await fetch('/api/device/qr', {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin'
+    });
+
+    // Fallback, falls /api von Guard geblockt ist
+    if (res.status === 401 || res.status === 403) {
+      res = await fetch('/device/qr_plain', { method: 'POST' });
+    }
+
+    if (!res.ok) {
+      const txt = await res.text().catch(()=> '');
+      throw new Error(`QR API Fehler (HTTP ${res.status}): ${txt.slice(0,200)}`);
+    }
+
+    const ct = res.headers.get('content-type')||'';
+    const j  = ct.includes('application/json') ? await res.json() : {};
+    const url = j?.url || j?.data?.url;
+    if (!url) throw new Error('API hat keine URL geliefert');
+
+    // === QR rendern + Link setzen ===
+    await ensureQRCodeLib();
+    if (box) {
+      box.innerHTML = '';
+      new QRCode(box, { text: url, width: 220, height: 220 });
+    }
+    if (link) { link.value = url; link.readOnly = true; }
+    if (aOpen) aOpen.href = url;
+
+    // Buttons verdrahten
+    const copyBtn = document.getElementById('qrCopyDash');
+    if (copyBtn){
+      copyBtn.disabled = false;
+      copyBtn.onclick = ()=> navigator.clipboard.writeText(url);
+    }
+    const dlBtn = document.getElementById('qrDownloadDash');
+    if (dlBtn){
+      dlBtn.disabled = false;
+      dlBtn.onclick = ()=>{
+        const canvas = box?.querySelector('canvas');
+        const img    = box?.querySelector('img');
+        const dataUrl= canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+        if(!dataUrl) return alert('Kein QR-Bild gefunden.');
+        const a = document.createElement('a'); a.href = dataUrl; a.download = 'Tablet_Login_QR.png'; a.click();
+      };
+    }
+    const printBtn = document.getElementById('qrPrintDash');
+    if (printBtn){
+      printBtn.disabled = false;
+      printBtn.onclick = ()=>{
+        const canvas = box?.querySelector('canvas');
+        const imgUrl = canvas ? canvas.toDataURL('image/png') : (box?.querySelector('img')?.src || '');
+        const w = window.open('', '_blank');
+        w.document.write(`
+          <html><head><title>Tablet-Login QR</title>
+          <style>body{font:16px/1.4 system-ui;margin:24px;text-align:center}</style>
+          </head><body>
+            <h1>Tablet-Login</h1>
+            <img src="${imgUrl}" alt="QR" style="width:320px;height:320px"/>
+            <div style="margin-top:10px">${(link?.value || url).replace(/&/g,'&amp;')}</div>
+          </body></html>`);
+        w.document.close(); w.focus(); w.print();
+      };
+    }
+
+    msg('Fertig ✔');
+
+  } catch (e){
+    console.error(e);
+    toast(e.message || 'Unbekannter Fehler', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ========= Init / Events ========= */
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Form-Handler
+  $('#projektForm')?.addEventListener('submit', projektErstellen);
+  $('#mitarbeiterForm')?.addEventListener('submit', mitarbeiterHinzufuegen);
+  $('#kundenForm')?.addEventListener('submit', kundenHinzufuegen);
+
+  // Checkboxen
+  $$('.projekt-checkbox').forEach(cb=>cb.addEventListener('change', toggleProjektAuswahl));
+  updateDeleteButtonState($$('.projekt-checkbox:checked').length);
+
+  // QR: Header-Button öffnet Modal und startet Generierung
+  document.getElementById('btnDeviceQR')
+    ?.addEventListener('click', ()=>{ openModal('qrModalDash'); generateDeviceQR(); });
+
+  // QR: Modal-Button (falls vorhanden) startet Generierung
+  document.getElementById('genDeviceQrBtn')
+    ?.addEventListener('click', generateDeviceQR);
+
+  // Modal schliessen
+  document.getElementById('qrCloseBtnDash')
+    ?.addEventListener('click', ()=> closeModal('qrModalDash'));
+  document.getElementById('qrModalDash')
+    ?.addEventListener('click', (e)=>{ if(e.target.id==='qrModalDash') closeModal('qrModalDash'); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal('qrModalDash'); });
+});
+</script>
+</body>
+</html>
